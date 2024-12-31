@@ -1,0 +1,132 @@
+defmodule Chunx.Chunker.Semantic.Sentences do
+  @moduledoc """
+  Handles sentence preparation and processing for semantic chunking.
+  """
+
+  alias Chunx.Chunk
+
+  @separator "🦛"
+  @min_chars_per_sentence 12
+  @delimiters [".", "!", "?", "\n"]
+  @similarity_window 1
+
+  @doc """
+  Prepares sentences from text with tokenization and embeddings.
+  """
+  @spec prepare_sentences(
+          text :: binary(),
+          tokenizer :: Tokenizers.Tokenizer.t(),
+          embedding_fun :: (list(binary()) -> list(Chunx.Chunk.t())),
+          opts :: keyword()
+        ) :: list(Chunk.t())
+  def prepare_sentences(text, tokenizer, embedding_fun, opts \\ [])
+      when is_binary(text) and is_function(embedding_fun, 1) do
+    separator = Keyword.get(opts, :separator, @separator)
+    min_chars_per_sentence = Keyword.get(opts, :min_chars_per_sentence, @min_chars_per_sentence)
+    delimiters = Keyword.get(opts, :delimiters, @delimiters)
+    similarity_window = Keyword.get(opts, :similarity_window, @similarity_window)
+
+    sentences = split_sentences(text, separator, delimiters, min_chars_per_sentence)
+    sentences_with_indices = find_sentence_indices(text, sentences)
+    token_counts = get_token_counts(sentences, tokenizer)
+    sentence_groups = build_sentence_groups(sentences, similarity_window)
+    embeddings = compute_embeddings(sentence_groups, embedding_fun)
+
+    sentences_with_indices
+    |> Enum.zip(token_counts)
+    |> Enum.zip(embeddings)
+    |> Enum.map(fn {{{text, start_index, end_index}, token_count}, embedding} ->
+      %Chunk{
+        text: text,
+        start_index: start_index,
+        end_index: end_index,
+        token_count: token_count,
+        embedding: embedding
+      }
+    end)
+  end
+
+  def find_sentence_indices(text, sentences) do
+    {sentences_with_indices, _} =
+      Enum.reduce(sentences, {[], 0}, fn sentence, {acc, current_idx} ->
+        case :binary.match(text, sentence, scope: {current_idx, byte_size(text) - current_idx}) do
+          {pos, _len} ->
+            start_idx = pos
+            end_idx = pos + byte_size(sentence)
+            {[{sentence, start_idx, end_idx} | acc], end_idx}
+
+          :nomatch ->
+            start_idx = current_idx
+            end_idx = current_idx + byte_size(sentence)
+            {[{sentence, start_idx, end_idx} | acc], end_idx}
+        end
+      end)
+
+    Enum.reverse(sentences_with_indices)
+  end
+
+  def split_sentences(text, separator, delimiters, min_chars_per_sentence) do
+    text_with_sep =
+      Enum.reduce(delimiters, text, fn delimiter, acc ->
+        String.replace(acc, delimiter, delimiter <> separator)
+      end)
+
+    initial_splits =
+      text_with_sep
+      |> String.split(separator)
+      |> Enum.reject(&(&1 == ""))
+
+    combine_short_sentences(initial_splits, min_chars_per_sentence)
+  end
+
+  def combine_short_sentences(splits, min_chars) do
+    {sentences, current} =
+      Enum.reduce(splits, {[], ""}, fn split, {sentences, current} ->
+        if String.length(String.trim(split)) < min_chars do
+          {sentences, current <> split}
+        else
+          if current != "" do
+            {sentences ++ [current], split}
+          else
+            {sentences, split}
+          end
+        end
+      end)
+
+    if current != "" do
+      sentences ++ [current]
+    else
+      sentences
+    end
+  end
+
+  defp get_token_counts(sentences, tokenizer) do
+    sentences
+    |> Enum.map(fn sentence ->
+      {:ok, encoding} = Tokenizers.Tokenizer.encode(tokenizer, sentence)
+      Tokenizers.Encoding.get_length(encoding)
+    end)
+  end
+
+  def build_sentence_groups(sentences, 0), do: sentences
+
+  def build_sentence_groups(sentences, similarity_window) when is_integer(similarity_window) do
+    len = length(sentences)
+
+    sentences
+    |> Enum.with_index()
+    |> Enum.map(fn {_sentence, index} ->
+      sentences
+      |> Enum.slice(max(0, index - similarity_window)..min(len - 1, index + similarity_window))
+      |> Enum.join()
+    end)
+  end
+
+  defp compute_embeddings(texts, embedding_fn) when is_function(embedding_fn, 1) do
+    texts
+    |> Enum.chunk_every(32)
+    |> Enum.flat_map(fn batch ->
+      embedding_fn.(batch)
+    end)
+  end
+end
