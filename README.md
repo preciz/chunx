@@ -2,6 +2,10 @@
 
 Chunx is an Elixir library for splitting text into meaningful chunks using various strategies. It's particularly useful for processing large texts for LLMs, semantic search, and other NLP tasks.
 
+## Credit
+
+This library is based on [chonkie-ai/chonkie](https://github.com/chonkie-ai/chonkie)
+
 ## Features
 
 - Multiple chunking strategies:
