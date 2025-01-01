@@ -81,6 +81,13 @@ Each chunking strategy accepts various options to customize the chunking behavio
 
 See the documentation for each chunker module for detailed configuration options.
 
+## Testing
+
+```elixir
+# Run the test suite
+mix test
+```
+
 ## License
 
 [MIT License](LICENSE)
