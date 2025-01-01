@@ -46,6 +46,7 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     end)
   end
 
+  @spec find_sentence_indices(binary(), list(binary())) :: list({binary(), non_neg_integer(), non_neg_integer()})
   def find_sentence_indices(text, sentences) do
     {sentences_with_indices, _} =
       Enum.reduce(sentences, {[], 0}, fn sentence, {acc, current_idx} ->
@@ -65,6 +66,7 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     Enum.reverse(sentences_with_indices)
   end
 
+  @spec split_sentences(binary(), binary(), list(binary()), non_neg_integer()) :: list(binary())
   def split_sentences(text, separator, delimiters, min_chars_per_sentence) do
     text_with_sep =
       Enum.reduce(delimiters, text, fn delimiter, acc ->
@@ -79,6 +81,7 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     combine_short_sentences(initial_splits, min_chars_per_sentence)
   end
 
+  @spec combine_short_sentences(list(binary()), non_neg_integer()) :: list(binary())
   def combine_short_sentences(splits, min_chars) do
     {sentences, current} =
       Enum.reduce(splits, {[], ""}, fn split, {sentences, current} ->
@@ -108,6 +111,7 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     end)
   end
 
+  @spec build_sentence_groups(list(binary()), non_neg_integer()) :: list(binary())
   def build_sentence_groups(sentences, 0), do: sentences
 
   def build_sentence_groups(sentences, similarity_window) when is_integer(similarity_window) do
