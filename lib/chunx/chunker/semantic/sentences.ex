@@ -30,7 +30,7 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     sentences_with_indices = find_sentence_indices(text, sentences)
     token_counts = get_token_counts(sentences, tokenizer)
     sentence_groups = build_sentence_groups(sentences, similarity_window)
-    embeddings = compute_embeddings(sentence_groups, embedding_fun)
+    embeddings = embedding_fun.(sentence_groups)
 
     sentences_with_indices
     |> Enum.zip(token_counts)
@@ -119,14 +119,6 @@ defmodule Chunx.Chunker.Semantic.Sentences do
       sentences
       |> Enum.slice(max(0, index - similarity_window)..min(len - 1, index + similarity_window))
       |> Enum.join()
-    end)
-  end
-
-  defp compute_embeddings(texts, embedding_fun) when is_function(embedding_fun, 1) do
-    texts
-    |> Enum.chunk_every(32)
-    |> Enum.flat_map(fn batch ->
-      embedding_fun.(batch)
     end)
   end
 end
