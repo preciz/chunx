@@ -81,5 +81,5 @@ See the documentation for each chunker module for detailed configuration options
 
 ## License
 
-MIT License
+[MIT License](LICENSE)
 
