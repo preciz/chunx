@@ -44,7 +44,8 @@ defmodule Chunx.Chunker.Semantic do
           chunk_opts()
         ) ::
           {:ok, [SentenceChunk.t()]} | {:error, term()}
-  def chunk(text, tokenizer, embedding_model, opts \\ []) when is_binary(text) do
+  def chunk(text, tokenizer, embedding_fun, opts \\ [])
+      when is_binary(text) and is_function(embedding_fun, 1) do
     opts = Keyword.merge(@default_opts, opts)
     config = validate_config!(opts)
 
@@ -52,7 +53,7 @@ defmodule Chunx.Chunker.Semantic do
       {:ok, []}
     else
       sentences =
-        Chunx.Chunker.Semantic.Sentences.prepare_sentences(text, tokenizer, embedding_model, opts)
+        Chunx.Chunker.Semantic.Sentences.prepare_sentences(text, tokenizer, embedding_fun, opts)
 
       if length(sentences) <= config.min_sentences do
         chunk = create_chunk(sentences)
