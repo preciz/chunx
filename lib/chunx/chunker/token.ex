@@ -31,8 +31,8 @@ defmodule Chunx.Chunker.Token do
       {
         :ok,
         [
-          %Chunx.Chunk{end_index: 12, start_index: 0, text: "Some text to", token_count: 3},
-          %Chunx.Chunk{end_index: 18, start_index: 10, text: "to split", token_count: 2}
+          %Chunx.Chunk{end_byte: 12, start_byte: 0, text: "Some text to", token_count: 3},
+          %Chunx.Chunk{end_byte: 18, start_byte: 10, text: "to split", token_count: 2}
         ]
       }
   """

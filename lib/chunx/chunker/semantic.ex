@@ -267,13 +267,13 @@ defmodule Chunx.Chunker.Semantic do
   defp create_chunk(sentences) do
     text = Enum.map_join(sentences, "", & &1.text)
     token_count = Enum.sum(Enum.map(sentences, & &1.token_count))
-    start_index = hd(sentences).start_index
-    end_index = List.last(sentences).end_index
+    start_byte = hd(sentences).start_byte
+    end_byte = List.last(sentences).end_byte
 
     %SentenceChunk{
       text: text,
-      start_index: start_index,
-      end_index: end_index,
+      start_byte: start_byte,
+      end_byte: end_byte,
       token_count: token_count,
       sentences: sentences
     }

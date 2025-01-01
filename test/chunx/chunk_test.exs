@@ -7,18 +7,18 @@ defmodule Chunx.ChunkTest do
       chunk = Chunk.new("sample text", 0, 10, 2)
       assert %Chunk{} = chunk
       assert chunk.text == "sample text"
-      assert chunk.start_index == 0
-      assert chunk.end_index == 10
+      assert chunk.start_byte == 0
+      assert chunk.end_byte == 10
       assert chunk.token_count == 2
     end
 
-    test "raises when start_index is negative" do
+    test "raises when start_byte is negative" do
       assert_raise FunctionClauseError, fn ->
         Chunk.new("text", -1, 10, 1)
       end
     end
 
-    test "raises when end_index is less than start_index" do
+    test "raises when end_byte is less than start_byte" do
       assert_raise FunctionClauseError, fn ->
         Chunk.new("text", 10, 5, 1)
       end

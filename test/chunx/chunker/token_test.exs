@@ -49,8 +49,8 @@ defmodule Chunx.Chunker.TokenTest do
       assert Enum.all?(chunks, fn chunk ->
                is_binary(chunk.text) and
                  chunk.token_count > 0 and
-                 chunk.start_index >= 0 and
-                 chunk.end_index > chunk.start_index
+                 chunk.start_byte >= 0 and
+                 chunk.end_byte > chunk.start_byte
              end)
     end
 
@@ -72,7 +72,7 @@ defmodule Chunx.Chunker.TokenTest do
       chunks
       |> Enum.chunk_every(2, 1, :discard)
       |> Enum.each(fn [chunk1, chunk2] ->
-        assert chunk2.start_index < chunk1.end_index
+        assert chunk2.start_byte < chunk1.end_byte
       end)
     end
 
@@ -129,7 +129,7 @@ defmodule Chunx.Chunker.TokenTest do
 
       Enum.each(chunks, fn chunk ->
         extracted_text =
-          String.slice(@sample_text, chunk.start_index, chunk.end_index - chunk.start_index)
+          String.slice(@sample_text, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
         assert String.trim(chunk.text) == String.trim(extracted_text)
       end)
@@ -144,7 +144,7 @@ defmodule Chunx.Chunker.TokenTest do
       # Verify indices map correctly
       Enum.each(chunks, fn chunk ->
         extracted_text =
-          String.slice(@complex_markdown, chunk.start_index, chunk.end_index - chunk.start_index)
+          String.slice(@complex_markdown, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
         assert String.trim(chunk.text) == String.trim(extracted_text)
       end)
@@ -257,35 +257,35 @@ defmodule Chunx.Chunker.TokenTest do
              %Chunk{
                text:
                  "\nThe tiny hippo mascot of the Chonkie library brings a playful touch to text chunking",
-               start_index: 0,
-               end_index: 85,
+               start_byte: 0,
+               end_byte: 85,
                token_count: 20
              },
              %Chunk{
                text:
                  " touch to text chunking.\nIt efficiently breaks down large texts into manageable pieces while maintaining context\n",
-               start_index: 62,
-               end_index: 175,
+               start_byte: 62,
+               end_byte: 175,
                token_count: 20
              },
              %Chunk{
                text:
                  " pieces while maintaining context\nand meaning. Whether you're working with documents, articles, or any lengthy",
-               start_index: 141,
-               end_index: 251,
+               start_byte: 141,
+               end_byte: 251,
                token_count: 20
              },
              %Chunk{
                text:
                  " articles, or any lengthy text,\nChonkie makes the process simple and reliable.\n",
-               start_index: 226,
-               end_index: 305,
+               start_byte: 226,
+               end_byte: 305,
                token_count: 19
              },
              %Chunk{
                text: " and reliable.\n",
-               start_index: 290,
-               end_index: 305,
+               start_byte: 290,
+               end_byte: 305,
                token_count: 4
              }
            ] == chunks

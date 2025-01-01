@@ -150,7 +150,7 @@ defmodule Chunx.Chunker.Semantic.SentencesTest do
 
       Enum.each(sentences, fn chunk ->
         extracted_text =
-          String.slice(@complex_markdown, chunk.start_index, chunk.end_index - chunk.start_index)
+          String.slice(@complex_markdown, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
         assert chunk.text == extracted_text
       end)

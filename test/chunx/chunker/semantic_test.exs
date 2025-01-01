@@ -153,7 +153,7 @@ defmodule Chunx.Chunker.SemanticTest do
 
       Enum.each(chunks, fn chunk ->
         extracted_text =
-          binary_part(@sample_text, chunk.start_index, chunk.end_index - chunk.start_index)
+          binary_part(@sample_text, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
         assert String.trim(chunk.text) == String.trim(extracted_text)
       end)

@@ -135,8 +135,8 @@ defmodule Chunx.Chunker.Sentence do
 
       chunk = %Chunk{
         text: sentence,
-        start_index: pos,
-        end_index: pos + byte_size(sentence),
+        start_byte: pos,
+        end_byte: pos + byte_size(sentence),
         token_count: token_count
       }
 
@@ -200,8 +200,8 @@ defmodule Chunx.Chunker.Sentence do
   defp create_sentence_chunk(sentences, token_count) do
     %SentenceChunk{
       text: Enum.map_join(sentences, "", & &1.text),
-      start_index: hd(sentences).start_index,
-      end_index: List.last(sentences).end_index,
+      start_byte: hd(sentences).start_byte,
+      end_byte: List.last(sentences).end_byte,
       token_count: token_count,
       sentences: sentences
     }

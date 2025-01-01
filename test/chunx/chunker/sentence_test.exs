@@ -61,7 +61,7 @@ defmodule Chunx.Chunker.SentenceTest do
       chunks
       |> Enum.chunk_every(2, 1, :discard)
       |> Enum.each(fn [chunk1, chunk2] ->
-        assert chunk2.start_index < chunk1.end_index
+        assert chunk2.start_byte < chunk1.end_byte
       end)
     end
 
@@ -78,7 +78,7 @@ defmodule Chunx.Chunker.SentenceTest do
       |> Enum.each(fn [chunk1, chunk2] ->
         overlapping_sentences =
           Enum.filter(chunk2.sentences, fn s ->
-            s.start_index < chunk1.end_index
+            s.start_byte < chunk1.end_byte
           end)
 
         overlap_tokens = Enum.sum_by(overlapping_sentences, & &1.token_count)
@@ -165,7 +165,7 @@ defmodule Chunx.Chunker.SentenceTest do
 
       Enum.each(chunks, fn chunk ->
         extracted_text =
-          binary_part(@sample_text, chunk.start_index, chunk.end_index - chunk.start_index)
+          binary_part(@sample_text, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
         assert chunk.text == extracted_text
       end)
@@ -176,7 +176,7 @@ defmodule Chunx.Chunker.SentenceTest do
 
       Enum.each(chunks, fn chunk ->
         extracted_text =
-          binary_part(@complex_markdown, chunk.start_index, chunk.end_index - chunk.start_index)
+          binary_part(@complex_markdown, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
         assert chunk.text == extracted_text
       end)
@@ -252,42 +252,42 @@ defmodule Chunx.Chunker.SentenceTest do
                  sentences: [
                    %Chunx.Chunk{
                      text: "Hi!",
-                     start_index: 0,
-                     end_index: 3,
+                     start_byte: 0,
+                     end_byte: 3,
                      token_count: 2,
                      embedding: nil
                    },
                    %Chunx.Chunk{
                      text: " How are you? I am fine.",
-                     start_index: 3,
-                     end_index: 27,
+                     start_byte: 3,
+                     end_byte: 27,
                      token_count: 8,
                      embedding: nil
                    },
                    %Chunx.Chunk{
                      text: " This is a short sentence.",
-                     start_index: 27,
-                     end_index: 53,
+                     start_byte: 27,
+                     end_byte: 53,
                      token_count: 6,
                      embedding: nil
                    },
                    %Chunx.Chunk{
                      text: " And another one!",
-                     start_index: 53,
-                     end_index: 70,
+                     start_byte: 53,
+                     end_byte: 70,
                      token_count: 4,
                      embedding: nil
                    },
                    %Chunx.Chunk{
                      text: "\nYet another short one.",
-                     start_index: 70,
-                     end_index: 93,
+                     start_byte: 70,
+                     end_byte: 93,
                      token_count: 6,
                      embedding: nil
                    }
                  ],
-                 start_index: 0,
-                 end_index: 93,
+                 start_byte: 0,
+                 end_byte: 93,
                  token_count: 26
                },
                %Chunx.SentenceChunk{
@@ -296,42 +296,42 @@ defmodule Chunx.Chunker.SentenceTest do
                  sentences: [
                    %Chunx.Chunk{
                      text: " And another one!",
-                     start_index: 53,
-                     end_index: 70,
+                     start_byte: 53,
+                     end_byte: 70,
                      token_count: 4,
                      embedding: nil
                    },
                    %Chunx.Chunk{
                      text: "\nYet another short one.",
-                     start_index: 70,
-                     end_index: 93,
+                     start_byte: 70,
+                     end_byte: 93,
                      token_count: 6,
                      embedding: nil
                    },
                    %Chunx.Chunk{
                      text: " These are all brief.",
-                     start_index: 93,
-                     end_index: 114,
+                     start_byte: 93,
+                     end_byte: 114,
                      token_count: 5,
                      embedding: nil
                    },
                    %Chunx.Chunk{
                      text: " Very brief indeed.",
-                     start_index: 114,
-                     end_index: 133,
+                     start_byte: 114,
+                     end_byte: 133,
                      token_count: 4,
                      embedding: nil
                    },
                    %Chunx.Chunk{
                      text: " Testing multiple sentences.",
-                     start_index: 133,
-                     end_index: 161,
+                     start_byte: 133,
+                     end_byte: 161,
                      token_count: 4,
                      embedding: nil
                    }
                  ],
-                 start_index: 53,
-                 end_index: 161,
+                 start_byte: 53,
+                 end_byte: 161,
                  token_count: 23
                },
                %Chunx.SentenceChunk{
@@ -340,35 +340,35 @@ defmodule Chunx.Chunker.SentenceTest do
                  sentences: [
                    %Chunx.Chunk{
                      text: " Very brief indeed.",
-                     start_index: 114,
-                     end_index: 133,
+                     start_byte: 114,
+                     end_byte: 133,
                      token_count: 4,
                      embedding: nil
                    },
                    %Chunx.Chunk{
                      text: " Testing multiple sentences.",
-                     start_index: 133,
-                     end_index: 161,
+                     start_byte: 133,
+                     end_byte: 161,
                      token_count: 4,
                      embedding: nil
                    },
                    %Chunx.Chunk{
                      text: "\nCan you see how they group?",
-                     start_index: 161,
-                     end_index: 189,
+                     start_byte: 161,
+                     end_byte: 189,
                      token_count: 8,
                      embedding: nil
                    },
                    %Chunx.Chunk{
                      text: " They should fit several per chunk now!\n",
-                     start_index: 189,
-                     end_index: 229,
+                     start_byte: 189,
+                     end_byte: 229,
                      token_count: 9,
                      embedding: nil
                    }
                  ],
-                 start_index: 114,
-                 end_index: 229,
+                 start_byte: 114,
+                 end_byte: 229,
                  token_count: 25
                }
              ]

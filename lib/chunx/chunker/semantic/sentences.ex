@@ -35,11 +35,11 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     sentences_with_indices
     |> Enum.zip(token_counts)
     |> Enum.zip(embeddings)
-    |> Enum.map(fn {{{text, start_index, end_index}, token_count}, embedding} ->
+    |> Enum.map(fn {{{text, start_byte, end_byte}, token_count}, embedding} ->
       %Chunk{
         text: text,
-        start_index: start_index,
-        end_index: end_index,
+        start_byte: start_byte,
+        end_byte: end_byte,
         token_count: token_count,
         embedding: embedding
       }

@@ -34,8 +34,8 @@ defmodule Chunx.Chunker.Word do
       {
         :ok,
         [
-          %Chunx.Chunk{end_index: 12, start_index: 0, text: "Some text to", token_count: 3},
-          %Chunx.Chunk{end_index: 18, start_index: 9, text: " to split", token_count: 2}
+          %Chunx.Chunk{end_byte: 12, start_byte: 0, text: "Some text to", token_count: 3},
+          %Chunx.Chunk{end_byte: 18, start_byte: 9, text: " to split", token_count: 2}
         ]
       }
   """
@@ -164,8 +164,8 @@ defmodule Chunx.Chunker.Word do
 
   defp create_chunk(words, text, token_count) do
     chunk_text = Enum.join(words)
-    {start_index, length} = :binary.match(text, chunk_text)
+    {start_byte, length} = :binary.match(text, chunk_text)
 
-    Chunk.new(chunk_text, start_index, start_index + length, token_count)
+    Chunk.new(chunk_text, start_byte, start_byte + length, token_count)
   end
 end

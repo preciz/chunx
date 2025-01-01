@@ -50,8 +50,8 @@ defmodule Chunx.Chunker.WordTest do
       assert Enum.all?(chunks, fn chunk ->
                is_binary(chunk.text) and
                  chunk.token_count > 0 and
-                 chunk.start_index >= 0 and
-                 chunk.end_index > chunk.start_index
+                 chunk.start_byte >= 0 and
+                 chunk.end_byte > chunk.start_byte
              end)
     end
 
@@ -89,7 +89,7 @@ defmodule Chunx.Chunker.WordTest do
       # Only get pairs, discard incomplete chunks
       |> Enum.chunk_every(2, 1, :discard)
       |> Enum.each(fn [chunk1, chunk2] ->
-        assert chunk2.start_index < chunk1.end_index,
+        assert chunk2.start_byte < chunk1.end_byte,
                "Expected overlap between chunks not found"
       end)
 
@@ -116,7 +116,7 @@ defmodule Chunx.Chunker.WordTest do
 
       Enum.each(chunks, fn chunk ->
         extracted_text =
-          String.slice(@sample_text, chunk.start_index, chunk.end_index - chunk.start_index)
+          String.slice(@sample_text, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
         assert String.trim(chunk.text) == String.trim(extracted_text)
       end)
@@ -131,7 +131,7 @@ defmodule Chunx.Chunker.WordTest do
       # Verify indices map correctly
       Enum.each(chunks, fn chunk ->
         extracted_text =
-          String.slice(@complex_markdown, chunk.start_index, chunk.end_index - chunk.start_index)
+          String.slice(@complex_markdown, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
         assert String.trim(chunk.text) == String.trim(extracted_text)
       end)
@@ -194,38 +194,38 @@ defmodule Chunx.Chunker.WordTest do
     assert [
              %Chunk{
                text: "\nThe WordChunker splits text at word boundaries, which",
-               start_index: 0,
-               end_index: 54,
+               start_byte: 0,
+               end_byte: 54,
                token_count: 12
              },
              %Chunk{
                text: " boundaries, which makes it ideal for\npreserving complete",
-               start_index: 36,
-               end_index: 93,
+               start_byte: 36,
+               end_byte: 93,
                token_count: 11
              },
              %Chunk{
                text: " complete words. It won't cut words in the middle,",
-               start_index: 84,
-               end_index: 134,
+               start_byte: 84,
+               end_byte: 134,
                token_count: 12
              },
              %Chunk{
                text: " the middle, making the output more\nreadable and semantically",
-               start_index: 122,
-               end_index: 183,
+               start_byte: 122,
+               end_byte: 183,
                token_count: 12
              },
              %Chunk{
                text: " and semantically coherent. This is especially useful when working with",
-               start_index: 166,
-               end_index: 237,
+               start_byte: 166,
+               end_byte: 237,
                token_count: 12
              },
              %Chunk{
                text: " when working with\nnatural language processing tasks.\n",
-               start_index: 219,
-               end_index: 273,
+               start_byte: 219,
+               end_byte: 273,
                token_count: 10
              }
            ] == chunks
@@ -261,10 +261,10 @@ defmodule Chunx.Chunker.WordTest do
     {:ok, chunks} = Word.chunk(text, tokenizer, chunk_size: 3, chunk_overlap: 0.25)
 
     assert [
-             %Chunk{text: "Hey there my", start_index: 0, end_index: 12, token_count: 3},
-             %Chunk{text: " friend, how", start_index: 12, end_index: 24, token_count: 3},
-             %Chunk{text: " is it going", start_index: 24, end_index: 36, token_count: 3},
-             %Chunk{text: " out there?", start_index: 36, end_index: 47, token_count: 3}
+             %Chunk{text: "Hey there my", start_byte: 0, end_byte: 12, token_count: 3},
+             %Chunk{text: " friend, how", start_byte: 12, end_byte: 24, token_count: 3},
+             %Chunk{text: " is it going", start_byte: 24, end_byte: 36, token_count: 3},
+             %Chunk{text: " out there?", start_byte: 36, end_byte: 47, token_count: 3}
            ] == chunks
   end
 end
