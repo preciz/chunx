@@ -16,7 +16,7 @@ defmodule Chunx.Chunker.Semantic.Sentences do
   @spec prepare_sentences(
           text :: binary(),
           tokenizer :: Tokenizers.Tokenizer.t(),
-          embedding_fun :: (list(binary()) -> list(Chunk.t())),
+          embedding_fun :: (list(binary()) -> list(Nx.Tensor.t())),
           opts :: keyword()
         ) :: list(Chunk.t())
   def prepare_sentences(text, tokenizer, embedding_fun, opts \\ [])
