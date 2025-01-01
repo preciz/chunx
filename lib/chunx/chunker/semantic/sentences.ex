@@ -122,11 +122,11 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     end)
   end
 
-  defp compute_embeddings(texts, embedding_fn) when is_function(embedding_fn, 1) do
+  defp compute_embeddings(texts, embedding_fun) when is_function(embedding_fun, 1) do
     texts
     |> Enum.chunk_every(32)
     |> Enum.flat_map(fn batch ->
-      embedding_fn.(batch)
+      embedding_fun.(batch)
     end)
   end
 end
