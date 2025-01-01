@@ -58,9 +58,12 @@ end
 
 ```elixir
 {:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")
+
+# The embedding function must return a list of Nx.Tensor.t()
 embedding_fn = fn texts ->
-  # Your embedding function here end
+  # Your embedding function here
 end
+
 {:ok, chunks} = Chunx.Chunker.Semantic.chunk("Your text here", tokenizer, embedding_fn)
 ```
 
