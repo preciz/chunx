@@ -1,5 +1,7 @@
 # Chunx
 
+[![test](https://github.com/preciz/chunx/actions/workflows/test.yml/badge.svg)](https://github.com/preciz/chunx/actions/workflows/test.yml)
+
 Chunx is an Elixir library for splitting text into meaningful chunks using various strategies. It's particularly useful for processing large texts for LLMs, semantic search, and other NLP tasks.
 
 ## Credit
