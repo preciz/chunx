@@ -46,7 +46,8 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     end)
   end
 
-  @spec find_sentence_indices(binary(), list(binary())) :: list({binary(), non_neg_integer(), non_neg_integer()})
+  @spec find_sentence_indices(binary(), list(binary())) ::
+          list({binary(), non_neg_integer(), non_neg_integer()})
   def find_sentence_indices(text, sentences) do
     {sentences_with_indices, _} =
       Enum.reduce(sentences, {[], 0}, fn sentence, {acc, current_idx} ->
