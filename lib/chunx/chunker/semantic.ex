@@ -209,11 +209,11 @@ defmodule Chunx.Chunker.Semantic do
     # Get split points based on similarity threshold
     split_indices = get_split_indices(avg_similarities, threshold, config)
 
-    # Create groups based on split indices
     split_indices
     |> Enum.map(fn [start_idx, end_idx] ->
-      Enum.slice(sentences, start_idx..end_idx)
+      Enum.slice(sentences, start_idx..(end_idx - 1))
     end)
+    |> Enum.reject(&Enum.empty?/1)
   end
 
   defp get_split_indices(avg_similarities, threshold, config) do
