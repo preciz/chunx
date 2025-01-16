@@ -23,7 +23,7 @@ defmodule Chunx.MixProject do
     [
       {:tokenizers, "~> 0.5.1"},
       {:nx, "~> 0.9.2"},
-      {:scholar, "~> 0.3.1"},
+      {:scholar, "~> 0.4.0"},
       {:exla, "~> 0.9.2", only: [:dev, :test]},
       {:bumblebee, "~> 0.6.0", only: [:dev, :test]}
     ]
