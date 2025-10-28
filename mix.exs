@@ -22,10 +22,10 @@ defmodule Chunx.MixProject do
   defp deps do
     [
       {:tokenizers, "~> 0.5.1"},
-      {:nx, "~> 0.9.2"},
-      {:scholar, "~> 0.4.0"},
-      {:exla, "~> 0.9.2", only: [:dev, :test]},
-      {:bumblebee, "~> 0.6.0", only: [:dev, :test]}
+      {:nx, "~> 0.10"},
+      {:scholar, "~> 0.4"},
+      {:exla, "~> 0.10", only: [:dev, :test]},
+      {:bumblebee, "~> 0.6.3", only: [:dev, :test]}
     ]
   end
 end
