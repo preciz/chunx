@@ -1,7 +1,5 @@
 defmodule Chunx.Chunker.Semantic.Sentences do
-  @moduledoc """
-  Handles sentence preparation and processing for semantic chunking.
-  """
+  @moduledoc false
 
   alias Chunx.Chunk
 

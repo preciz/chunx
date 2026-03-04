@@ -1,5 +1,7 @@
 defmodule Chunx.Helper do
-  @moduledoc """
+  @moduledoc false
+
+  @doc """
   Provides math and statistic helper functions for array analysis.
   """
   @spec median([number()]) :: number()
