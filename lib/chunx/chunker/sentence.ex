@@ -98,7 +98,7 @@ defmodule Chunx.Chunker.Sentence do
 
   defp split_sentences(text, config) do
     separator = <<0, 1, 2, 3, 4, 5, 255, 254, 253, 252>>
-    
+
     config.delimiters
     |> Enum.reduce(text, fn delimiter, acc ->
       String.replace(acc, delimiter, delimiter <> separator)
@@ -163,7 +163,7 @@ defmodule Chunx.Chunker.Sentence do
 
     case create_sentence_chunk(chunk_sentences, total_tokens) do
       %SentenceChunk{} = sentence_chunk ->
-        next_pos = find_overlap_start(sentences, split_idx, pos, config)
+        next_pos = find_overlap_start(chunk_sentences, split_idx, length(sentences), config)
 
         do_create_chunks(
           sentences,
@@ -176,19 +176,20 @@ defmodule Chunx.Chunker.Sentence do
   end
 
   defp split_at_chunk_boundary(sentences, pos, config) do
-    chunk_sentences =
+    {chunk_sentences, _total} =
       sentences
       |> Enum.drop(pos)
-      |> Enum.reduce_while([], fn sentence, acc ->
-        total_tokens = Enum.sum_by(acc, & &1.token_count) + sentence.token_count
+      |> Enum.reduce_while({[], 0}, fn sentence, {acc, current_tokens} ->
+        total_tokens = current_tokens + sentence.token_count
 
         if total_tokens <= config.chunk_size or length(acc) < config.min_sentences_per_chunk do
-          {:cont, [sentence | acc]}
+          {:cont, {[sentence | acc], total_tokens}}
         else
-          {:halt, acc}
+          {:halt, {acc, current_tokens}}
         end
       end)
-      |> Enum.reverse()
+
+    chunk_sentences = Enum.reverse(chunk_sentences)
 
     {chunk_sentences, pos + length(chunk_sentences)}
   end
@@ -203,18 +204,18 @@ defmodule Chunx.Chunker.Sentence do
     }
   end
 
-  defp find_overlap_start(sentences, split_idx, pos, config) do
-    if config.chunk_overlap > 0 and split_idx < length(sentences) do
+  defp find_overlap_start(chunk_sentences, split_idx, total_len, config) do
+    if config.chunk_overlap > 0 and split_idx < total_len do
       {overlap_pos, _} =
-        Range.new(split_idx - 1, pos, -1)
-        |> Enum.reduce_while({split_idx, 0}, fn idx, {_, total_tokens} ->
-          sentence = Enum.at(sentences, idx)
+        chunk_sentences
+        |> Enum.reverse()
+        |> Enum.reduce_while({split_idx, 0}, fn sentence, {current_idx, total_tokens} ->
           new_total = total_tokens + sentence.token_count
 
           if new_total > config.chunk_overlap do
-            {:halt, {idx + 1, new_total}}
+            {:halt, {current_idx, new_total}}
           else
-            {:cont, {idx, new_total}}
+            {:cont, {current_idx - 1, new_total}}
           end
         end)
 

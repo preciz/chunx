@@ -113,42 +113,41 @@ defmodule Chunx.Chunker.Word do
   end
 
   defp create_chunks(words, lengths, text, config) do
-    words_with_lengths =
-      Enum.zip(words, lengths)
-      |> Enum.with_index()
+    words_with_lengths = Enum.zip(words, lengths)
 
-    {chunks, current_chunk, current_length, _} =
-      Enum.reduce(words_with_lengths, {[], [], 0, 0}, fn {{word, length}, idx},
-                                                         {chunks, current_chunk, current_length,
-                                                          _} ->
+    {chunks, current_chunk, current_length} =
+      Enum.reduce(words_with_lengths, {[], [], 0}, fn {word, length},
+                                                      {chunks, current_chunk, current_length} ->
         if current_length + length <= config.chunk_size or current_chunk == [] do
-          {chunks, current_chunk ++ [word], current_length + length, idx}
+          {chunks, [{word, length} | current_chunk], current_length + length}
         else
-          chunk = create_chunk(current_chunk, text, current_length)
+          words_in_chunk = Enum.reverse(current_chunk) |> Enum.map(&elem(&1, 0))
+          chunk = create_chunk(words_in_chunk, text, current_length)
 
-          # Calculate overlap similar to Python version
-          overlap_start_idx = max(0, idx - length(current_chunk))
-
-          {overlap_words, overlap_length} =
-            words_with_lengths
-            |> Enum.slice(overlap_start_idx, idx - overlap_start_idx)
-            |> Enum.reverse()
-            |> Enum.reduce_while({[], 0}, fn {{w, l}, _}, {acc, len} ->
+          {overlap_chunk_reversed, overlap_length} =
+            current_chunk
+            |> Enum.reduce_while({[], 0}, fn {_, l} = item, {acc, len} ->
               if len + l <= config.chunk_overlap do
-                {:cont, {[w | acc], len + l}}
+                {:cont, {[item | acc], len + l}}
               else
                 {:halt, {acc, len}}
               end
             end)
 
-          new_chunk = overlap_words ++ [word]
+          overlap_chunk_reversed = Enum.reverse(overlap_chunk_reversed)
+
+          new_chunk = [{word, length} | overlap_chunk_reversed]
           new_length = overlap_length + length
 
-          {chunks ++ [chunk], new_chunk, new_length, idx}
+          {[chunk | chunks], new_chunk, new_length}
         end
       end)
 
-    (chunks ++ [create_chunk(current_chunk, text, current_length)])
+    words_in_chunk = Enum.reverse(current_chunk) |> Enum.map(&elem(&1, 0))
+    final_chunk = create_chunk(words_in_chunk, text, current_length)
+
+    [final_chunk | chunks]
+    |> Enum.reverse()
     |> Enum.reject(&is_nil/1)
   end
 

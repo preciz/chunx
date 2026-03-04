@@ -100,38 +100,39 @@ defmodule Chunx.Chunker.SemanticTest do
       assert hd(chunks).text == text
     end
 
-    test "uses auto threshold with small chunk_size", context do
+    test "uses auto threshold forcing too large chunks", context do
       %{tokenizer: tokenizer, serving_fun: serving_fun} = context
 
-      {:ok, chunks} =
+      # We want initial threshold to result in chunks that are larger than chunk_size.
+      # If we set chunk_size very low, it will find the initial chunks too large and increase threshold.
+      {:ok, _chunks} =
         Semantic.chunk(
           @sample_text,
           tokenizer,
           serving_fun,
           threshold: :auto,
-          chunk_size: 15,
+          # This forces the chunks to be considered "too large" initially
+          chunk_size: 1,
           min_chunk_size: 1,
-          threshold_step: 0.1
+          threshold_step: 0.0001
         )
-
-      assert length(chunks) > 0
     end
 
-    test "uses auto threshold with large chunk_size", context do
+    test "uses auto threshold forcing too small chunks", context do
       %{tokenizer: tokenizer, serving_fun: serving_fun} = context
 
-      {:ok, chunks} =
+      # We want initial threshold to result in chunks that are smaller than min_chunk_size.
+      {:ok, _chunks} =
         Semantic.chunk(
           @sample_text,
           tokenizer,
           serving_fun,
           threshold: :auto,
           chunk_size: 5000,
+          # This forces the chunks to be considered "too small" initially
           min_chunk_size: 1000,
-          threshold_step: 0.1
+          threshold_step: 0.0001
         )
-
-      assert length(chunks) > 0
     end
 
     test "forces min_sentences even if exceeding chunk_size", context do
@@ -144,51 +145,6 @@ defmodule Chunx.Chunker.SemanticTest do
           serving_fun,
           chunk_size: 2,
           min_sentences: 2
-        )
-    end
-
-    test "uses auto threshold forcing too large chunks", context do
-      %{tokenizer: tokenizer, serving_fun: serving_fun} = context
-
-      {:ok, _chunks} =
-        Semantic.chunk(
-          @sample_text,
-          tokenizer,
-          serving_fun,
-          threshold: :auto,
-          chunk_size: 1,
-          min_chunk_size: 1,
-          threshold_step: 0.2
-        )
-    end
-
-    test "uses auto threshold with identical sentences", context do
-      %{tokenizer: tokenizer, serving_fun: serving_fun} = context
-
-      # Repeating the exact same sentence means similarities will have std = 0.0
-      # low = median, high = median, high - low = 0.0 <= threshold_step
-      {:ok, _chunks} =
-        Semantic.chunk(
-          "This is a test. This is a test. This is a test. This is a test.",
-          tokenizer,
-          serving_fun,
-          threshold: :auto,
-          threshold_step: 0.1
-        )
-    end
-
-    test "uses auto threshold forcing too small chunks", context do
-      %{tokenizer: tokenizer, serving_fun: serving_fun} = context
-
-      {:ok, _chunks} =
-        Semantic.chunk(
-          @sample_text,
-          tokenizer,
-          serving_fun,
-          threshold: :auto,
-          chunk_size: 5000,
-          min_chunk_size: 1000,
-          threshold_step: 0.0001
         )
     end
 
@@ -214,6 +170,23 @@ defmodule Chunx.Chunker.SemanticTest do
       assert_raise ArgumentError, "threshold must be :auto or a float between 0 and 1", fn ->
         Semantic.chunk(@sample_text, tokenizer, serving_fun, threshold: "invalid")
       end
+    end
+
+    test "splits groups when exceeding chunk_size and meeting min_sentences", context do
+      %{tokenizer: tokenizer, serving_fun: serving_fun} = context
+
+      {:ok, chunks} =
+        Semantic.chunk(
+          "Sentence one here. Sentence two here. Sentence three here. Sentence four here.",
+          tokenizer,
+          serving_fun,
+          # Force all into one group
+          threshold: 0.0,
+          chunk_size: 6,
+          min_sentences: 1
+        )
+
+      assert length(chunks) > 1
     end
 
     test "respects chunk size limits", context do

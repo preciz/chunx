@@ -59,11 +59,11 @@ defmodule Chunx.Chunker.Semantic do
         chunk = create_chunk(sentences)
         {:ok, [chunk]}
       else
-        {threshold, maybe_pairwise_similarities} =
+        {threshold, avg_similarities} =
           calculate_similarity_threshold(sentences, config)
 
         sentence_groups =
-          group_sentences(sentences, threshold, maybe_pairwise_similarities, config)
+          group_sentences(sentences, threshold, avg_similarities, config)
 
         chunks = split_chunks(sentence_groups, config)
         {:ok, chunks}
@@ -104,12 +104,44 @@ defmodule Chunx.Chunker.Semantic do
     calculate_threshold_via_binary_search(sentences, config)
   end
 
-  defp calculate_similarity_threshold(_sentences, %{threshold: threshold}) do
-    {threshold, nil}
+  defp calculate_similarity_threshold(sentences, %{threshold: threshold}) do
+    {threshold, compute_avg_similarities(sentences)}
+  end
+
+  defp compute_avg_similarities(sentences) do
+    similarities = compute_pairwise_similarities(sentences)
+
+    all_similarities =
+      similarities
+      |> Enum.flat_map(fn {i, j, similarity} ->
+        [{i, similarity}, {j, similarity}]
+      end)
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+
+    0..(length(sentences) - 1)
+    |> Enum.map(fn i ->
+      list = all_similarities[i]
+      Enum.sum(list) / length(list)
+    end)
   end
 
   defp calculate_threshold_via_binary_search(sentences, config) do
     similarities = compute_pairwise_similarities(sentences)
+
+    all_similarities =
+      similarities
+      |> Enum.flat_map(fn {i, j, similarity} ->
+        [{i, similarity}, {j, similarity}]
+      end)
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+
+    avg_similarities =
+      0..(length(sentences) - 1)
+      |> Enum.map(fn i ->
+        list = all_similarities[i]
+        Enum.sum(list) / length(list)
+      end)
+
     similarity_values = Enum.map(similarities, fn {_, _, sim} -> sim end)
     median = Chunx.Helper.median(similarity_values)
     std = Chunx.Helper.standard_deviation(similarity_values)
@@ -117,25 +149,49 @@ defmodule Chunx.Chunker.Semantic do
     low = max(median - std, 0.0)
     high = min(median + std, 1.0)
 
-    {find_optimal_threshold(sentences, config, low, high), similarities}
+    {cumulative_tokens_list, _} =
+      Enum.map_reduce(sentences, 0, fn s, acc ->
+        new_acc = acc + s.token_count
+        {new_acc, new_acc}
+      end)
+
+    cumulative_tokens = List.to_tuple([0 | cumulative_tokens_list])
+
+    avg_sims_tuple = List.to_tuple(avg_similarities)
+
+    optimal_threshold =
+      find_optimal_threshold(
+        avg_sims_tuple,
+        cumulative_tokens,
+        length(sentences),
+        config,
+        low,
+        high
+      )
+
+    {optimal_threshold, avg_similarities}
   end
 
-  defp find_optimal_threshold(sentences, config, low, high, iterations \\ 0)
-
-  defp find_optimal_threshold(sentences, config, low, high, iterations) do
+  defp find_optimal_threshold(
+         avg_similarities,
+         cumulative_tokens,
+         total_sentences,
+         config,
+         low,
+         high,
+         iterations \\ 0
+       ) do
     if abs(high - low) <= config.threshold_step or iterations > 10 do
       (low + high) / 2
     else
       threshold = (low + high) / 2
-      split_ranges = get_split_indices(sentences, threshold, config)
+      split_ranges = get_split_indices(avg_similarities, total_sentences, threshold, config)
 
       token_counts =
-        split_ranges
-        |> Enum.map(fn [start_idx, end_idx] ->
-          sentences
-          |> Enum.slice(start_idx, end_idx - start_idx)
-          |> Enum.map(& &1.token_count)
-          |> Enum.sum()
+        Enum.map(split_ranges, fn [start_idx, end_idx] ->
+          end_tokens = elem(cumulative_tokens, end_idx)
+          start_tokens = elem(cumulative_tokens, start_idx)
+          end_tokens - start_tokens
         end)
 
       all_valid_size =
@@ -146,9 +202,10 @@ defmodule Chunx.Chunker.Semantic do
           threshold
 
         Enum.any?(token_counts, &(&1 > config.chunk_size)) ->
-          # If any chunk is too large, increase threshold to create smaller chunks
           find_optimal_threshold(
-            sentences,
+            avg_similarities,
+            cumulative_tokens,
+            total_sentences,
             config,
             threshold + config.threshold_step,
             high,
@@ -156,9 +213,10 @@ defmodule Chunx.Chunker.Semantic do
           )
 
         true ->
-          # If chunks are too small, decrease threshold to create larger chunks
           find_optimal_threshold(
-            sentences,
+            avg_similarities,
+            cumulative_tokens,
+            total_sentences,
             config,
             low,
             threshold - config.threshold_step,
@@ -182,27 +240,9 @@ defmodule Chunx.Chunker.Semantic do
     1 - Nx.to_number(Distance.cosine(v1, v2))
   end
 
-  defp group_sentences(sentences, threshold, maybe_pairwise_similarities, config) do
-    similarities = maybe_pairwise_similarities || compute_pairwise_similarities(sentences)
-
-    # Average similarities for each sentence with its neighbors
-    all_similarities =
-      similarities
-      |> Enum.flat_map(fn {i, j, similarity} ->
-        [{i, similarity}, {j, similarity}]
-      end)
-      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
-
-    avg_similarities =
-      similarities
-      |> Enum.map(fn {i, _, _} ->
-        list = all_similarities[i]
-
-        Enum.sum(list) / length(list)
-      end)
-
-    # Get split points based on similarity threshold
-    split_indices = get_split_indices(avg_similarities, threshold, config)
+  defp group_sentences(sentences, threshold, avg_similarities, config) do
+    split_indices =
+      get_split_indices(List.to_tuple(avg_similarities), length(sentences), threshold, config)
 
     split_indices
     |> Enum.map(fn [start_idx, end_idx] ->
@@ -211,18 +251,15 @@ defmodule Chunx.Chunker.Semantic do
     |> Enum.reject(&Enum.empty?/1)
   end
 
-  defp get_split_indices(avg_similarities, threshold, config) do
-    # Get indices where similarity drops below threshold
+  defp get_split_indices(avg_similarities, total_sentences, threshold, config) do
+    # avg_similarities is a Tuple for fast iteration
     split_points =
-      avg_similarities
-      |> Enum.with_index()
-      |> Enum.filter(fn {sim, _idx} -> sim <= threshold end)
-      |> Enum.map(fn {_sim, idx} -> idx + 1 end)
+      0..(total_sentences - 1)
+      |> Enum.filter(fn idx -> elem(avg_similarities, idx) <= threshold end)
+      |> Enum.map(&(&1 + 1))
 
-    # Add start and end points
-    splits = [0] ++ split_points ++ [length(avg_similarities) + 1]
+    splits = [0] ++ split_points ++ [total_sentences]
 
-    # Filter splits that don't meet minimum sentence requirement
     splits
     |> Enum.chunk_every(2, 1, :discard)
     |> Enum.filter(fn [start_idx, end_idx] ->
@@ -238,26 +275,22 @@ defmodule Chunx.Chunker.Semantic do
   end
 
   defp split_group_into_chunks(group, config) do
-    {chunks, current_chunk, _current_tokens} =
+    {chunks, current_chunk, _current_tokens, _current_length} =
       group
-      |> Enum.reduce({[], [], 0}, fn sentence, {chunks, current_chunk, current_tokens} ->
+      |> Enum.reduce({[], [], 0, 0}, fn sentence,
+                                        {chunks, current_chunk, current_tokens, current_length} ->
         new_tokens = current_tokens + sentence.token_count
 
-        cond do
-          new_tokens <= config.chunk_size ->
-            {chunks, current_chunk ++ [sentence], new_tokens}
-
-          length(current_chunk) < config.min_sentences ->
-            # If the current chunk doesn't meet min_sentences, force add sentence
-            {chunks, current_chunk ++ [sentence], new_tokens}
-
-          true ->
-            chunk = create_chunk(current_chunk)
-            {chunks ++ [chunk], [sentence], sentence.token_count}
+        if new_tokens <= config.chunk_size or current_length < config.min_sentences do
+          {chunks, [sentence | current_chunk], new_tokens, current_length + 1}
+        else
+          chunk = create_chunk(Enum.reverse(current_chunk))
+          {[chunk | chunks], [sentence], sentence.token_count, 1}
         end
       end)
 
-    if current_chunk != [], do: chunks ++ [create_chunk(current_chunk)], else: chunks
+    [create_chunk(Enum.reverse(current_chunk)) | chunks]
+    |> Enum.reverse()
   end
 
   defp create_chunk(sentences) do

@@ -24,9 +24,12 @@ defmodule Chunx.Chunker.PropertyTest do
     end
   end
 
-  property "Word chunker always produces chunks within the specified size or minimum size for a single word", %{tokenizer: tokenizer} do
-    check all text <- string(:printable),
-              chunk_size <- integer(1..100) do
+  property "Word chunker always produces chunks within the specified size or minimum size for a single word",
+           %{tokenizer: tokenizer} do
+    check all(
+            text <- string(:printable),
+            chunk_size <- integer(1..100)
+          ) do
       # Set chunk_overlap to 0 to prevent previous overlapping words from inflating the count of a single-word chunk
       {:ok, chunks} = Word.chunk(text, tokenizer, chunk_size: chunk_size, chunk_overlap: 0)
 
@@ -37,9 +40,13 @@ defmodule Chunx.Chunker.PropertyTest do
     end
   end
 
-  property "Word chunker combines chunks to original text when overlap is 0", %{tokenizer: tokenizer} do
-    check all text <- string(:printable),
-              chunk_size <- integer(1..50) do
+  property "Word chunker combines chunks to original text when overlap is 0", %{
+    tokenizer: tokenizer
+  } do
+    check all(
+            text <- string(:printable),
+            chunk_size <- integer(1..50)
+          ) do
       {:ok, chunks} = Word.chunk(text, tokenizer, chunk_size: chunk_size, chunk_overlap: 0)
 
       for chunk <- chunks do

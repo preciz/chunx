@@ -26,7 +26,8 @@ defmodule Chunx.MixProject do
       {:scholar, "~> 0.4"},
       {:exla, "~> 0.10", only: [:dev, :test]},
       {:bumblebee, "~> 0.6", only: [:dev, :test]},
-      {:stream_data, "~> 1.1", only: [:dev, :test]}
+      {:stream_data, "~> 1.1", only: [:dev, :test]},
+      {:benchee, "~> 1.3", only: [:dev, :test]}
     ]
   end
 end
