@@ -97,11 +97,13 @@ defmodule Chunx.Chunker.Sentence do
   end
 
   defp split_sentences(text, config) do
+    separator = <<0, 1, 2, 3, 4, 5, 255, 254, 253, 252>>
+    
     config.delimiters
     |> Enum.reduce(text, fn delimiter, acc ->
-      String.replace(acc, delimiter, delimiter <> "🦛")
+      String.replace(acc, delimiter, delimiter <> separator)
     end)
-    |> String.split("🦛", trim: true)
+    |> String.split(separator, trim: true)
     |> combine_short_sentences([], config.short_sentence_threshold)
   end
 

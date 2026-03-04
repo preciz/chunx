@@ -24,37 +24,28 @@ defmodule Chunx.Chunker.PropertyTest do
     end
   end
 
-  property "Word chunker always produces chunks within the specified size or minimum size for a word",
-           %{tokenizer: tokenizer} do
-    check all(
-            text <- string(:printable),
-            chunk_size <- integer(1..100)
-          ) do
-      {:ok, chunks} = Word.chunk(text, tokenizer, chunk_size: chunk_size)
+  property "Word chunker always produces chunks within the specified size or minimum size for a single word", %{tokenizer: tokenizer} do
+    check all text <- string(:printable),
+              chunk_size <- integer(1..100) do
+      # Set chunk_overlap to 0 to prevent previous overlapping words from inflating the count of a single-word chunk
+      {:ok, chunks} = Word.chunk(text, tokenizer, chunk_size: chunk_size, chunk_overlap: 0)
 
       for chunk <- chunks do
-        # In the word chunker, if a single word has more tokens than chunk_size, 
-        # it is returned as a chunk anyway to respect word boundaries.
-        # We assert that the chunk size is either within bounds OR it consists of just a single word
-        is_single_word = length(String.split(chunk.text, ~r/\s+/, trim: true)) <= 1
-        assert chunk.token_count <= chunk_size or is_single_word
+        words_in_chunk = Regex.scan(~r/\s*\S+/, chunk.text)
+        assert chunk.token_count <= chunk_size or length(words_in_chunk) <= 1
       end
     end
   end
 
-  property "Word chunker combines chunks to original text when overlap is 0", %{
-    tokenizer: tokenizer
-  } do
-    check all(
-            text <- string(:printable),
-            chunk_size <- integer(1..50)
-          ) do
+  property "Word chunker combines chunks to original text when overlap is 0", %{tokenizer: tokenizer} do
+    check all text <- string(:printable),
+              chunk_size <- integer(1..50) do
       {:ok, chunks} = Word.chunk(text, tokenizer, chunk_size: chunk_size, chunk_overlap: 0)
 
       for chunk <- chunks do
         assert String.contains?(text, String.trim(chunk.text))
 
-        extracted_text = String.slice(text, chunk.start_byte, chunk.end_byte - chunk.start_byte)
+        extracted_text = binary_part(text, chunk.start_byte, chunk.end_byte - chunk.start_byte)
         assert chunk.text == extracted_text
       end
     end

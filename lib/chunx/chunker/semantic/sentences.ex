@@ -5,7 +5,7 @@ defmodule Chunx.Chunker.Semantic.Sentences do
 
   alias Chunx.Chunk
 
-  @separator "🦛"
+  @separator <<0, 1, 2, 3, 4, 5, 255, 254, 253, 252>>
   @min_chars_per_sentence 12
   @delimiters [".", "!", "?", "\n"]
   @similarity_window 1
