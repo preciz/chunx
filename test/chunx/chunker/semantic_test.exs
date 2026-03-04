@@ -26,33 +26,17 @@ defmodule Chunx.Chunker.SemanticTest do
   Finally, a paragraph at the end.
   """
 
-  setup do
-    {:ok, dynamic_supervisor} = DynamicSupervisor.start_link([])
-
-    model = "intfloat/e5-small-v2"
-    {:ok, model_info} = Bumblebee.load_model({:hf, model})
-    {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, model})
-
-    serving =
-      Bumblebee.Text.text_embedding(
-        model_info,
-        tokenizer,
-        compile: [batch_size: 20, sequence_length: 512],
-        defn_options: [compiler: EXLA]
-      )
-      |> Nx.Serving.defn_options(compiler: EXLA)
-
-    {:ok, _} =
-      DynamicSupervisor.start_child(
-        dynamic_supervisor,
-        {Nx.Serving,
-         serving: serving, name: :embedding_serving, batch_size: 20, batch_timeout: 1000}
-      )
+  setup_all do
+    {:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")
 
     %{
-      tokenizer: tokenizer.native_tokenizer,
+      tokenizer: tokenizer,
       serving_fun: fn inputs ->
-        Nx.Serving.batched_run(:embedding_serving, inputs) |> Enum.map(& &1.embedding)
+        # Use a mock embedding function that returns a random tensor 
+        # so that standard deviations and medians are still calculable for :auto threshold
+        Enum.map(inputs, fn _ ->
+          Nx.tensor(Enum.map(1..768, fn _ -> :rand.uniform() end))
+        end)
       end
     }
   end
