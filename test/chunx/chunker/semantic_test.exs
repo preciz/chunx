@@ -100,6 +100,122 @@ defmodule Chunx.Chunker.SemanticTest do
       assert hd(chunks).text == text
     end
 
+    test "uses auto threshold with small chunk_size", context do
+      %{tokenizer: tokenizer, serving_fun: serving_fun} = context
+
+      {:ok, chunks} =
+        Semantic.chunk(
+          @sample_text,
+          tokenizer,
+          serving_fun,
+          threshold: :auto,
+          chunk_size: 15,
+          min_chunk_size: 1,
+          threshold_step: 0.1
+        )
+
+      assert length(chunks) > 0
+    end
+
+    test "uses auto threshold with large chunk_size", context do
+      %{tokenizer: tokenizer, serving_fun: serving_fun} = context
+
+      {:ok, chunks} =
+        Semantic.chunk(
+          @sample_text,
+          tokenizer,
+          serving_fun,
+          threshold: :auto,
+          chunk_size: 5000,
+          min_chunk_size: 1000,
+          threshold_step: 0.1
+        )
+
+      assert length(chunks) > 0
+    end
+
+    test "forces min_sentences even if exceeding chunk_size", context do
+      %{tokenizer: tokenizer, serving_fun: serving_fun} = context
+
+      {:ok, _chunks} =
+        Semantic.chunk(
+          "First long sentence that has many tokens. Second long sentence that also has many tokens. Third long sentence with even more tokens.",
+          tokenizer,
+          serving_fun,
+          chunk_size: 2,
+          min_sentences: 2
+        )
+    end
+
+    test "uses auto threshold forcing too large chunks", context do
+      %{tokenizer: tokenizer, serving_fun: serving_fun} = context
+
+      {:ok, _chunks} =
+        Semantic.chunk(
+          @sample_text,
+          tokenizer,
+          serving_fun,
+          threshold: :auto,
+          chunk_size: 1,
+          min_chunk_size: 1,
+          threshold_step: 0.2
+        )
+    end
+
+    test "uses auto threshold with identical sentences", context do
+      %{tokenizer: tokenizer, serving_fun: serving_fun} = context
+
+      # Repeating the exact same sentence means similarities will have std = 0.0
+      # low = median, high = median, high - low = 0.0 <= threshold_step
+      {:ok, _chunks} =
+        Semantic.chunk(
+          "This is a test. This is a test. This is a test. This is a test.",
+          tokenizer,
+          serving_fun,
+          threshold: :auto,
+          threshold_step: 0.1
+        )
+    end
+
+    test "uses auto threshold forcing too small chunks", context do
+      %{tokenizer: tokenizer, serving_fun: serving_fun} = context
+
+      {:ok, _chunks} =
+        Semantic.chunk(
+          @sample_text,
+          tokenizer,
+          serving_fun,
+          threshold: :auto,
+          chunk_size: 5000,
+          min_chunk_size: 1000,
+          threshold_step: 0.0001
+        )
+    end
+
+    test "validates all configuration arguments", context do
+      %{tokenizer: tokenizer, serving_fun: serving_fun} = context
+
+      assert_raise ArgumentError, "chunk_size must be positive", fn ->
+        Semantic.chunk(@sample_text, tokenizer, serving_fun, chunk_size: 0)
+      end
+
+      assert_raise ArgumentError, "min_sentences must be positive", fn ->
+        Semantic.chunk(@sample_text, tokenizer, serving_fun, min_sentences: 0)
+      end
+
+      assert_raise ArgumentError, "min_chunk_size must be positive", fn ->
+        Semantic.chunk(@sample_text, tokenizer, serving_fun, min_chunk_size: 0)
+      end
+
+      assert_raise ArgumentError, "threshold_step must be between 0 and 1", fn ->
+        Semantic.chunk(@sample_text, tokenizer, serving_fun, threshold_step: 1.5)
+      end
+
+      assert_raise ArgumentError, "threshold must be :auto or a float between 0 and 1", fn ->
+        Semantic.chunk(@sample_text, tokenizer, serving_fun, threshold: "invalid")
+      end
+    end
+
     test "respects chunk size limits", context do
       %{tokenizer: tokenizer, serving_fun: serving_fun} = context
 

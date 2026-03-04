@@ -109,6 +109,18 @@ defmodule Chunx.Chunker.WordTest do
                    fn ->
                      Word.chunk("test", tokenizer, chunk_size: 10, chunk_overlap: 10)
                    end
+
+      assert_raise ArgumentError,
+                   "chunk_overlap percentage must be less than 1",
+                   fn ->
+                     Word.chunk("test", tokenizer, chunk_size: 10, chunk_overlap: 1.5)
+                   end
+
+      assert_raise ArgumentError,
+                   "chunk_overlap percentage must be less than 1",
+                   fn ->
+                     Word.chunk("test", tokenizer, chunk_size: 10, chunk_overlap: -0.5)
+                   end
     end
 
     test "correctly maps chunk indices to original text", %{tokenizer: tokenizer} do

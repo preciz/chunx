@@ -188,6 +188,24 @@ defmodule Chunx.Chunker.SentenceTest do
       end
     end
 
+    test "validates chunk_overlap", %{tokenizer: tokenizer} do
+      assert_raise ArgumentError, "chunk_overlap must be less than chunk_size", fn ->
+        Chunx.Chunker.Sentence.chunk("test", tokenizer, chunk_size: 10, chunk_overlap: 10)
+      end
+    end
+
+    test "validates delimiters", %{tokenizer: tokenizer} do
+      assert_raise ArgumentError, "delimiters must contain at least one element", fn ->
+        Chunx.Chunker.Sentence.chunk("test", tokenizer, delimiters: [])
+      end
+    end
+
+    test "validates short_sentence_threshold", %{tokenizer: tokenizer} do
+      assert_raise ArgumentError, "short_sentence_threshold must be at least 1", fn ->
+        Chunx.Chunker.Sentence.chunk("test", tokenizer, short_sentence_threshold: 0)
+      end
+    end
+
     test "validates min_sentences_per_chunk", %{tokenizer: tokenizer} do
       assert_raise ArgumentError, "min_sentences_per_chunk must be at least 1", fn ->
         Chunx.Chunker.Sentence.chunk("test", tokenizer, min_sentences_per_chunk: 0)

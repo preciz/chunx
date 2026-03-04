@@ -146,14 +146,13 @@ defmodule Chunx.Chunker.Sentence do
     |> Enum.reverse()
   end
 
-  defp create_chunks([], _tokenizer, _config), do: []
-
   defp create_chunks(sentences, tokenizer, config) do
     do_create_chunks(sentences, tokenizer, config, [], 0)
   end
 
-  defp do_create_chunks([], _tokenizer, _config, chunks, _pos) do
-    Enum.reverse(chunks)
+  defp do_create_chunks(sentences, _tokenizer, _config, sentence_chunks, pos)
+       when pos >= length(sentences) do
+    Enum.reverse(sentence_chunks)
   end
 
   defp do_create_chunks(sentences, tokenizer, config, sentence_chunks, pos) do
@@ -161,9 +160,6 @@ defmodule Chunx.Chunker.Sentence do
     total_tokens = Enum.sum_by(chunk_sentences, & &1.token_count)
 
     case create_sentence_chunk(chunk_sentences, total_tokens) do
-      nil ->
-        Enum.reverse(sentence_chunks)
-
       %SentenceChunk{} = sentence_chunk ->
         next_pos = find_overlap_start(sentences, split_idx, pos, config)
 
@@ -194,8 +190,6 @@ defmodule Chunx.Chunker.Sentence do
 
     {chunk_sentences, pos + length(chunk_sentences)}
   end
-
-  defp create_sentence_chunk([], _token_count), do: nil
 
   defp create_sentence_chunk(sentences, token_count) do
     %SentenceChunk{

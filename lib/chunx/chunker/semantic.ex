@@ -122,54 +122,49 @@ defmodule Chunx.Chunker.Semantic do
 
   defp find_optimal_threshold(sentences, config, low, high, iterations \\ 0)
 
-  defp find_optimal_threshold(_, config, low, high, _iterations)
-       when abs(high - low) <= config.threshold_step do
-    (low + high) / 2
-  end
-
-  defp find_optimal_threshold(_, _, low, high, iterations) when iterations > 10 do
-    (low + high) / 2
-  end
-
   defp find_optimal_threshold(sentences, config, low, high, iterations) do
-    threshold = (low + high) / 2
-    split_ranges = get_split_indices(sentences, threshold, config)
+    if abs(high - low) <= config.threshold_step or iterations > 10 do
+      (low + high) / 2
+    else
+      threshold = (low + high) / 2
+      split_ranges = get_split_indices(sentences, threshold, config)
 
-    token_counts =
-      split_ranges
-      |> Enum.map(fn [start_idx, end_idx] ->
-        sentences
-        |> Enum.slice(start_idx, end_idx - start_idx)
-        |> Enum.map(& &1.token_count)
-        |> Enum.sum()
-      end)
+      token_counts =
+        split_ranges
+        |> Enum.map(fn [start_idx, end_idx] ->
+          sentences
+          |> Enum.slice(start_idx, end_idx - start_idx)
+          |> Enum.map(& &1.token_count)
+          |> Enum.sum()
+        end)
 
-    all_valid_size =
-      Enum.all?(token_counts, &(&1 >= config.min_chunk_size and &1 <= config.chunk_size))
+      all_valid_size =
+        Enum.all?(token_counts, &(&1 >= config.min_chunk_size and &1 <= config.chunk_size))
 
-    cond do
-      all_valid_size ->
-        threshold
+      cond do
+        all_valid_size ->
+          threshold
 
-      Enum.any?(token_counts, &(&1 > config.chunk_size)) ->
-        # If any chunk is too large, increase threshold to create smaller chunks
-        find_optimal_threshold(
-          sentences,
-          config,
-          threshold + config.threshold_step,
-          high,
-          iterations + 1
-        )
+        Enum.any?(token_counts, &(&1 > config.chunk_size)) ->
+          # If any chunk is too large, increase threshold to create smaller chunks
+          find_optimal_threshold(
+            sentences,
+            config,
+            threshold + config.threshold_step,
+            high,
+            iterations + 1
+          )
 
-      true ->
-        # If chunks are too small, decrease threshold to create larger chunks
-        find_optimal_threshold(
-          sentences,
-          config,
-          low,
-          threshold - config.threshold_step,
-          iterations + 1
-        )
+        true ->
+          # If chunks are too small, decrease threshold to create larger chunks
+          find_optimal_threshold(
+            sentences,
+            config,
+            low,
+            threshold - config.threshold_step,
+            iterations + 1
+          )
+      end
     end
   end
 

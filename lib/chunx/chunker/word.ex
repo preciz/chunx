@@ -82,15 +82,8 @@ defmodule Chunx.Chunker.Word do
         {start, text_part}
       end)
 
-    last_point =
-      case split_points do
-        [] ->
-          0
-
-        points ->
-          last = List.last(points)
-          elem(last, 0) + byte_size(elem(last, 1))
-      end
+    last = List.last(split_points)
+    last_point = elem(last, 0) + byte_size(elem(last, 1))
 
     if last_point < byte_size(text) do
       remaining_length = byte_size(text) - last_point
@@ -128,7 +121,7 @@ defmodule Chunx.Chunker.Word do
       Enum.reduce(words_with_lengths, {[], [], 0, 0}, fn {{word, length}, idx},
                                                          {chunks, current_chunk, current_length,
                                                           _} ->
-        if current_length + length <= config.chunk_size do
+        if current_length + length <= config.chunk_size or current_chunk == [] do
           {chunks, current_chunk ++ [word], current_length + length, idx}
         else
           chunk = create_chunk(current_chunk, text, current_length)
@@ -155,17 +148,18 @@ defmodule Chunx.Chunker.Word do
         end
       end)
 
-    if current_chunk != [] do
-      chunks ++ [create_chunk(current_chunk, text, current_length)]
-    else
-      chunks
-    end
+    (chunks ++ [create_chunk(current_chunk, text, current_length)])
+    |> Enum.reject(&is_nil/1)
   end
 
   defp create_chunk(words, text, token_count) do
     chunk_text = Enum.join(words)
-    {start_byte, length} = :binary.match(text, chunk_text)
 
-    Chunk.new(chunk_text, start_byte, start_byte + length, token_count)
+    if chunk_text == "" do
+      nil
+    else
+      {start_byte, length} = :binary.match(text, chunk_text)
+      Chunk.new(chunk_text, start_byte, start_byte + length, token_count)
+    end
   end
 end

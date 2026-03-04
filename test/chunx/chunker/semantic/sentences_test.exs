@@ -340,5 +340,18 @@ defmodule Chunx.Chunker.Semantic.SentencesTest do
                {" The cat ran away.", 23, 41}
              ]
     end
+
+    test "handles sentences not found in text" do
+      text = "Hello really big world"
+      sentences = ["Hello", " not", " big"]
+
+      result = Sentences.find_sentence_indices(text, sentences)
+
+      assert result == [
+               {"Hello", 0, 5},
+               {" not", 5, 9},
+               {" big", 12, 16}
+             ]
+    end
   end
 end
