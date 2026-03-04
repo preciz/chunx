@@ -31,7 +31,7 @@ defmodule Chunx.Chunker.Semantic.SentencesTest do
   Finally, a paragraph at the end.
   """
 
-  setup do
+  setup_all do
     {:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("minishlab/potion-base-8M")
 
     %{

@@ -4,7 +4,7 @@ defmodule Chunx.Chunker.TokenTest do
   alias Chunx.Chunk
   alias Chunx.Chunker.Token
 
-  setup do
+  setup_all do
     {:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("distilbert/distilbert-base-uncased")
     {:ok, tokenizer: tokenizer}
   end

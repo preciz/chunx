@@ -4,9 +4,9 @@ defmodule Chunx.Chunker.WordTest do
   alias Chunx.Chunk
   alias Chunx.Chunker.Word
 
-  setup do
+  setup_all do
     {:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")
-    {:ok, tokenizer: tokenizer}
+    %{tokenizer: tokenizer}
   end
 
   @sample_text """

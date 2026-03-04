@@ -4,7 +4,7 @@ defmodule Chunx.Chunker.SentenceTest do
 
   alias Chunx.Chunker.Sentence
 
-  setup do
+  setup_all do
     {:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")
     {:ok, tokenizer: tokenizer}
   end
