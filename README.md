@@ -28,7 +28,7 @@ Add `chunx` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:chunx, github: "preciz/chunx"}
+    {:chunx, "~> 0.1.0"}
   ]
 end
 ```
