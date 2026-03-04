@@ -2,7 +2,7 @@ defmodule Chunx.Chunker.PropertyTest do
   use ExUnit.Case, async: true
   use ExUnitProperties
 
-  alias Chunx.Chunker.{Token, Word, Sentence}
+  alias Chunx.Chunker.{Sentence, Token, Word}
 
   setup_all do
     {:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")

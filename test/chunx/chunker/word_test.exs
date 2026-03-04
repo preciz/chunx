@@ -1,8 +1,8 @@
 defmodule Chunx.Chunker.WordTest do
   use ExUnit.Case, async: true
   doctest Chunx.Chunker.Word
-  alias Chunx.Chunker.Word
   alias Chunx.Chunk
+  alias Chunx.Chunker.Word
 
   setup do
     {:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")
@@ -45,7 +45,7 @@ defmodule Chunx.Chunker.WordTest do
     test "creates chunks with default options", %{tokenizer: tokenizer} do
       {:ok, chunks} = Word.chunk(@sample_text, tokenizer)
 
-      assert length(chunks) > 0
+      assert chunks != []
 
       assert Enum.all?(chunks, fn chunk ->
                is_binary(chunk.text) and
@@ -138,7 +138,7 @@ defmodule Chunx.Chunker.WordTest do
       {:ok, chunks} = Word.chunk(@complex_markdown, tokenizer)
 
       # Verify chunks are created and maintain markdown structure
-      assert length(chunks) > 0
+      assert chunks != []
 
       # Verify indices map correctly
       Enum.each(chunks, fn chunk ->

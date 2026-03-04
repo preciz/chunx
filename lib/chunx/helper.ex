@@ -1,4 +1,7 @@
 defmodule Chunx.Helper do
+  @moduledoc """
+  Provides math and statistic helper functions for array analysis.
+  """
   @spec median([number()]) :: number()
   def median(values) do
     sorted = Enum.sort(values)

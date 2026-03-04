@@ -34,12 +34,12 @@ defmodule Chunx.Chunker.SentenceTest do
 
   describe "chunk/3" do
     test "handles empty text", %{tokenizer: tokenizer} do
-      assert {:ok, []} = Chunx.Chunker.Sentence.chunk("", tokenizer)
+      assert {:ok, []} = Sentence.chunk("", tokenizer)
     end
 
     test "handles single sentence", %{tokenizer: tokenizer} do
       text = "This is a single sentence."
-      {:ok, [sentence_chunk]} = Chunx.Chunker.Sentence.chunk(text, tokenizer)
+      {:ok, [sentence_chunk]} = Sentence.chunk(text, tokenizer)
 
       assert sentence_chunk.text == "This is a single sentence."
       assert length(sentence_chunk.sentences) == 1
@@ -47,7 +47,7 @@ defmodule Chunx.Chunker.SentenceTest do
 
     test "handles short text within single chunk", %{tokenizer: tokenizer} do
       text = "Hello, how are you? I am doing well."
-      {:ok, [sentence_chunk]} = Chunx.Chunker.Sentence.chunk(text, tokenizer)
+      {:ok, [sentence_chunk]} = Sentence.chunk(text, tokenizer)
 
       assert sentence_chunk.text == "Hello, how are you? I am doing well."
       assert length(sentence_chunk.sentences) == 2
@@ -55,7 +55,7 @@ defmodule Chunx.Chunker.SentenceTest do
 
     test "handles overlap correctly", %{tokenizer: tokenizer} do
       {:ok, chunks} =
-        Chunx.Chunker.Sentence.chunk(@sample_text, tokenizer, chunk_size: 512, chunk_overlap: 128)
+        Sentence.chunk(@sample_text, tokenizer, chunk_size: 512, chunk_overlap: 128)
 
       # Check that consecutive chunks have overlapping content
       chunks
@@ -147,7 +147,7 @@ defmodule Chunx.Chunker.SentenceTest do
       min_sentences = 2
 
       {:ok, chunks} =
-        Chunx.Chunker.Sentence.chunk(text, tokenizer,
+        Sentence.chunk(text, tokenizer,
           min_sentences_per_chunk: min_sentences,
           chunk_size: 3,
           chunk_overlap: 1
@@ -161,7 +161,7 @@ defmodule Chunx.Chunker.SentenceTest do
     end
 
     test "correctly maps chunk indices to original text", %{tokenizer: tokenizer} do
-      {:ok, chunks} = Chunx.Chunker.Sentence.chunk(@sample_text, tokenizer)
+      {:ok, chunks} = Sentence.chunk(@sample_text, tokenizer)
 
       Enum.each(chunks, fn chunk ->
         extracted_text =
@@ -172,7 +172,7 @@ defmodule Chunx.Chunker.SentenceTest do
     end
 
     test "correctly maps chunk indices in complex markdown", %{tokenizer: tokenizer} do
-      {:ok, chunks} = Chunx.Chunker.Sentence.chunk(@complex_markdown, tokenizer)
+      {:ok, chunks} = Sentence.chunk(@complex_markdown, tokenizer)
 
       Enum.each(chunks, fn chunk ->
         extracted_text =
@@ -184,31 +184,31 @@ defmodule Chunx.Chunker.SentenceTest do
 
     test "validates chunk_size", %{tokenizer: tokenizer} do
       assert_raise ArgumentError, "chunk_size must be positive", fn ->
-        Chunx.Chunker.Sentence.chunk("test", tokenizer, chunk_size: 0)
+        Sentence.chunk("test", tokenizer, chunk_size: 0)
       end
     end
 
     test "validates chunk_overlap", %{tokenizer: tokenizer} do
       assert_raise ArgumentError, "chunk_overlap must be less than chunk_size", fn ->
-        Chunx.Chunker.Sentence.chunk("test", tokenizer, chunk_size: 10, chunk_overlap: 10)
+        Sentence.chunk("test", tokenizer, chunk_size: 10, chunk_overlap: 10)
       end
     end
 
     test "validates delimiters", %{tokenizer: tokenizer} do
       assert_raise ArgumentError, "delimiters must contain at least one element", fn ->
-        Chunx.Chunker.Sentence.chunk("test", tokenizer, delimiters: [])
+        Sentence.chunk("test", tokenizer, delimiters: [])
       end
     end
 
     test "validates short_sentence_threshold", %{tokenizer: tokenizer} do
       assert_raise ArgumentError, "short_sentence_threshold must be at least 1", fn ->
-        Chunx.Chunker.Sentence.chunk("test", tokenizer, short_sentence_threshold: 0)
+        Sentence.chunk("test", tokenizer, short_sentence_threshold: 0)
       end
     end
 
     test "validates min_sentences_per_chunk", %{tokenizer: tokenizer} do
       assert_raise ArgumentError, "min_sentences_per_chunk must be at least 1", fn ->
-        Chunx.Chunker.Sentence.chunk("test", tokenizer, min_sentences_per_chunk: 0)
+        Sentence.chunk("test", tokenizer, min_sentences_per_chunk: 0)
       end
     end
 
@@ -225,7 +225,7 @@ defmodule Chunx.Chunker.SentenceTest do
       text = "First segment<SEP>Second segment<SEP>Third segment<SEP>Fourth segment"
 
       {:ok, chunks} =
-        Chunx.Chunker.Sentence.chunk(
+        Sentence.chunk(
           text,
           tokenizer,
           chunk_size: 30,
@@ -233,7 +233,7 @@ defmodule Chunx.Chunker.SentenceTest do
           delimiters: ["<SEP>"]
         )
 
-      assert length(chunks) > 0
+      assert chunks != []
 
       assert Enum.all?(chunks, fn chunk ->
                String.contains?(chunk.text, "segment")
@@ -242,15 +242,14 @@ defmodule Chunx.Chunker.SentenceTest do
       # Verify the original text is properly reconstructed from chunks
       reconstructed =
         chunks
-        |> Enum.map(& &1.text)
-        |> Enum.join("<SEP>")
+        |> Enum.map_join("<SEP>", & &1.text)
 
       assert reconstructed == text
     end
 
     test "returns correct value for text", %{tokenizer: tokenizer} do
       {:ok, chunks} =
-        Chunx.Chunker.Sentence.chunk(
+        Sentence.chunk(
           """
           Hi! How are you? I am fine. This is a short sentence. And another one!
           Yet another short one. These are all brief. Very brief indeed. Testing multiple sentences.

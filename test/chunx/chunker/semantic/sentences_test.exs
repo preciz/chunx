@@ -1,8 +1,8 @@
 defmodule Chunx.Chunker.Semantic.SentencesTest do
   use ExUnit.Case, async: true
 
-  alias Chunx.Chunker.Semantic.Sentences
   alias Chunx.Chunk
+  alias Chunx.Chunker.Semantic.Sentences
 
   @titanic """
   Titanic was a ship that sank in the North Atlantic Ocean in 1912 after hitting an iceberg.

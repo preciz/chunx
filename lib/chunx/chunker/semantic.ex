@@ -8,6 +8,7 @@ defmodule Chunx.Chunker.Semantic do
 
   @behaviour Chunx.Chunker
 
+  alias Chunx.Chunker.Semantic.Sentences
   alias Chunx.SentenceChunk
   alias Scholar.Metrics.Distance
 
@@ -53,7 +54,7 @@ defmodule Chunx.Chunker.Semantic do
       {:ok, []}
     else
       sentences =
-        Chunx.Chunker.Semantic.Sentences.prepare_sentences(text, tokenizer, embedding_fun, opts)
+        Sentences.prepare_sentences(text, tokenizer, embedding_fun, opts)
 
       if length(sentences) <= config.min_sentences do
         chunk = create_chunk(sentences)
@@ -78,18 +79,9 @@ defmodule Chunx.Chunker.Semantic do
     min_chunk_size = Keyword.fetch!(opts, :min_chunk_size)
     threshold_step = Keyword.fetch!(opts, :threshold_step)
 
-    if chunk_size <= 0, do: raise(ArgumentError, "chunk_size must be positive")
-    if min_sentences <= 0, do: raise(ArgumentError, "min_sentences must be positive")
-    if min_chunk_size <= 0, do: raise(ArgumentError, "min_chunk_size must be positive")
-
-    if threshold_step <= 0 or threshold_step >= 1,
-      do: raise(ArgumentError, "threshold_step must be between 0 and 1")
-
-    case threshold do
-      :auto -> :ok
-      t when is_float(t) and t >= 0 and t <= 1 -> :ok
-      _ -> raise(ArgumentError, "threshold must be :auto or a float between 0 and 1")
-    end
+    validate_positive_integers!(chunk_size, min_sentences, min_chunk_size)
+    validate_threshold_step!(threshold_step)
+    validate_threshold!(threshold)
 
     %{
       chunk_size: chunk_size,
@@ -98,6 +90,26 @@ defmodule Chunx.Chunker.Semantic do
       min_chunk_size: min_chunk_size,
       threshold_step: threshold_step
     }
+  end
+
+  defp validate_positive_integers!(chunk_size, min_sentences, min_chunk_size) do
+    if chunk_size <= 0, do: raise(ArgumentError, "chunk_size must be positive")
+    if min_sentences <= 0, do: raise(ArgumentError, "min_sentences must be positive")
+    if min_chunk_size <= 0, do: raise(ArgumentError, "min_chunk_size must be positive")
+  end
+
+  defp validate_threshold_step!(step) do
+    if step <= 0 or step >= 1 do
+      raise(ArgumentError, "threshold_step must be between 0 and 1")
+    end
+  end
+
+  defp validate_threshold!(threshold) do
+    case threshold do
+      :auto -> :ok
+      t when is_float(t) and t >= 0 and t <= 1 -> :ok
+      _ -> raise(ArgumentError, "threshold must be :auto or a float between 0 and 1")
+    end
   end
 
   defp calculate_similarity_threshold(sentences, %{threshold: :auto} = config) do

@@ -68,7 +68,7 @@ defmodule Chunx.Chunker.SemanticTest do
           serving_fun
         )
 
-      assert length(chunks) > 0
+      assert chunks != []
       assert Enum.all?(chunks, &match?(%SentenceChunk{}, &1))
     end
 
@@ -213,7 +213,7 @@ defmodule Chunx.Chunker.SemanticTest do
           serving_fun
         )
 
-      assert length(chunks) > 0
+      assert chunks != []
       assert Enum.all?(chunks, &match?(%SentenceChunk{}, &1))
     end
 

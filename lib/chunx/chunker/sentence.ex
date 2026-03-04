@@ -206,22 +206,26 @@ defmodule Chunx.Chunker.Sentence do
 
   defp find_overlap_start(chunk_sentences, split_idx, total_len, config) do
     if config.chunk_overlap > 0 and split_idx < total_len do
-      {overlap_pos, _} =
-        chunk_sentences
-        |> Enum.reverse()
-        |> Enum.reduce_while({split_idx, 0}, fn sentence, {current_idx, total_tokens} ->
-          new_total = total_tokens + sentence.token_count
-
-          if new_total > config.chunk_overlap do
-            {:halt, {current_idx, new_total}}
-          else
-            {:cont, {current_idx - 1, new_total}}
-          end
-        end)
-
-      overlap_pos
+      calculate_sentence_overlap(chunk_sentences, split_idx, config.chunk_overlap)
     else
       split_idx
     end
+  end
+
+  defp calculate_sentence_overlap(chunk_sentences, split_idx, chunk_overlap) do
+    {overlap_pos, _} =
+      chunk_sentences
+      |> Enum.reverse()
+      |> Enum.reduce_while({split_idx, 0}, fn sentence, {current_idx, total_tokens} ->
+        new_total = total_tokens + sentence.token_count
+
+        if new_total > chunk_overlap do
+          {:halt, {current_idx, new_total}}
+        else
+          {:cont, {current_idx - 1, new_total}}
+        end
+      end)
+
+    overlap_pos
   end
 end

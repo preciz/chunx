@@ -89,19 +89,20 @@ defmodule Chunx.Chunker.Semantic.Sentences do
         if String.length(String.trim(split)) < min_chars do
           {sentences, current <> split}
         else
-          if current != "" do
-            {sentences ++ [current], split}
-          else
-            {sentences, split}
-          end
+          append_valid_sentence(sentences, current, split)
         end
       end)
 
-    if current != "" do
-      sentences ++ [current]
-    else
-      sentences
-    end
+    sentences = if current != "", do: [current | sentences], else: sentences
+    Enum.reverse(sentences)
+  end
+
+  defp append_valid_sentence(sentences, "", split) do
+    {sentences, split}
+  end
+
+  defp append_valid_sentence(sentences, current, split) do
+    {[current | sentences], split}
   end
 
   defp get_token_counts(sentences, tokenizer) do

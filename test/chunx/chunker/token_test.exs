@@ -1,8 +1,8 @@
 defmodule Chunx.Chunker.TokenTest do
   use ExUnit.Case, async: true
   doctest Chunx.Chunker.Token
-  alias Chunx.Chunker.Token
   alias Chunx.Chunk
+  alias Chunx.Chunker.Token
 
   setup do
     {:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("distilbert/distilbert-base-uncased")
@@ -139,7 +139,7 @@ defmodule Chunx.Chunker.TokenTest do
       {:ok, chunks} = Token.chunk(@complex_markdown, tokenizer)
 
       # Verify chunks are created and maintain markdown structure
-      assert length(chunks) > 0
+      assert chunks != []
 
       # Verify indices map correctly
       Enum.each(chunks, fn chunk ->
@@ -174,12 +174,11 @@ defmodule Chunx.Chunker.TokenTest do
       text = "Hello 👋 World! This is a test with émojis 🌍 and áccents."
       {:ok, chunks} = Token.chunk(text, tokenizer, chunk_size: 5, chunk_overlap: 1)
 
-      assert length(chunks) > 0
+      assert chunks != []
       # Verify that unicode characters are preserved
       reconstructed =
         chunks
-        |> Enum.map(& &1.text)
-        |> Enum.join("")
+        |> Enum.map_join("", & &1.text)
         |> String.trim()
 
       assert reconstructed =~ "👋"

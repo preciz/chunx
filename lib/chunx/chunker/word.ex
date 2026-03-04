@@ -125,16 +125,7 @@ defmodule Chunx.Chunker.Word do
           chunk = create_chunk(words_in_chunk, text, current_length)
 
           {overlap_chunk_reversed, overlap_length} =
-            current_chunk
-            |> Enum.reduce_while({[], 0}, fn {_, l} = item, {acc, len} ->
-              if len + l <= config.chunk_overlap do
-                {:cont, {[item | acc], len + l}}
-              else
-                {:halt, {acc, len}}
-              end
-            end)
-
-          overlap_chunk_reversed = Enum.reverse(overlap_chunk_reversed)
+            calculate_overlap(current_chunk, config.chunk_overlap)
 
           new_chunk = [{word, length} | overlap_chunk_reversed]
           new_length = overlap_length + length
@@ -149,6 +140,20 @@ defmodule Chunx.Chunker.Word do
     [final_chunk | chunks]
     |> Enum.reverse()
     |> Enum.reject(&is_nil/1)
+  end
+
+  defp calculate_overlap(current_chunk, chunk_overlap) do
+    {overlap_chunk, overlap_length} =
+      current_chunk
+      |> Enum.reduce_while({[], 0}, fn {_, l} = item, {acc, len} ->
+        if len + l <= chunk_overlap do
+          {:cont, {[item | acc], len + l}}
+        else
+          {:halt, {acc, len}}
+        end
+      end)
+
+    {Enum.reverse(overlap_chunk), overlap_length}
   end
 
   defp create_chunk(words, text, token_count) do
