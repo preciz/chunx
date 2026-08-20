@@ -32,7 +32,7 @@ defmodule Chunx.Chunker.SemanticTest do
     %{
       tokenizer: tokenizer,
       serving_fun: fn inputs ->
-        # Use a mock embedding function that returns a random tensor 
+        # Use a mock embedding function that returns a random tensor
         # so that standard deviations and medians are still calculable for :auto threshold
         Enum.map(inputs, fn _ ->
           Nx.tensor(Enum.map(1..768, fn _ -> :rand.uniform() end))
