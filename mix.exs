@@ -8,7 +8,6 @@ defmodule Chunx.MixProject do
       app: :chunx,
       version: @version,
       elixir: "~> 1.17",
-      start_permanent: Mix.env() == :prod,
       description: description(),
       package: package(),
       docs: docs(),
@@ -37,14 +36,6 @@ defmodule Chunx.MixProject do
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
-  def application do
-    [
-      extra_applications: [:logger]
-    ]
-  end
-
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       {:tokenizers, "~> 0.5.1"},
@@ -53,7 +44,6 @@ defmodule Chunx.MixProject do
       {:exla, "~> 0.13.1", only: [:dev, :test]},
       {:bumblebee, "~> 0.7.1", only: [:dev, :test]},
       {:stream_data, "~> 1.4", only: [:dev, :test]},
-      {:benchee, "~> 1.3", only: [:dev, :test]},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false}
     ]

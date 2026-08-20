@@ -62,6 +62,9 @@ embedding_fun = &MyApp.Embeddings.embed/1
   )
 ```
 
+The repository also includes a
+[non-semantic example](https://github.com/preciz/chunx/blob/v0.2.0/examples/demo.exs).
+
 ## Testing
 
 Run the regular suite:

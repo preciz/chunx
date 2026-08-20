@@ -4,14 +4,10 @@ defmodule Chunx.Chunker.Semantic.Sentences do
   alias Chunx.{Chunk, Tokenizer}
   alias Chunx.Chunker.SentenceSplitter
 
-  @separator <<0, 1, 2, 3, 4, 5, 255, 254, 253, 252>>
   @min_chars_per_sentence 12
   @delimiters [".", "!", "?", "\n"]
   @similarity_window 1
 
-  @doc """
-  Prepares sentences from text with tokenization and embeddings.
-  """
   @spec prepare_sentences(
           text :: binary(),
           tokenizer :: Tokenizer.t(),
@@ -20,14 +16,13 @@ defmodule Chunx.Chunker.Semantic.Sentences do
         ) :: [Chunk.t()] | {:error, term()}
   def prepare_sentences(text, tokenizer, embedding_fun, opts \\ [])
       when is_binary(text) and is_function(embedding_fun, 1) do
-    separator = Keyword.get(opts, :separator, @separator)
     min_chars_per_sentence = Keyword.get(opts, :min_chars_per_sentence, @min_chars_per_sentence)
     delimiters = Keyword.get(opts, :delimiters, @delimiters)
     similarity_window = Keyword.get(opts, :similarity_window, @similarity_window)
 
-    validate_options!(separator, delimiters, min_chars_per_sentence, similarity_window)
+    validate_options!(delimiters, min_chars_per_sentence, similarity_window)
 
-    sentences = split_sentences(text, separator, delimiters, min_chars_per_sentence)
+    sentences = split_sentences(text, delimiters, min_chars_per_sentence)
     sentences_with_indices = find_sentence_indices(text, sentences)
 
     with {:ok, token_counts} <- get_token_counts(sentences, tokenizer) do
@@ -75,8 +70,8 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     Enum.reverse(sentences_with_indices)
   end
 
-  @spec split_sentences(binary(), binary(), [binary()], non_neg_integer()) :: [binary()]
-  def split_sentences(text, _separator, delimiters, min_chars_per_sentence) do
+  @spec split_sentences(binary(), [binary()], non_neg_integer()) :: [binary()]
+  def split_sentences(text, delimiters, min_chars_per_sentence) do
     text
     |> SentenceSplitter.split(delimiters)
     |> combine_short_sentences(min_chars_per_sentence)
@@ -140,17 +135,11 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     end)
   end
 
-  defp validate_options!(separator, delimiters, min_chars_per_sentence, similarity_window) do
-    validate_separator!(separator)
+  defp validate_options!(delimiters, min_chars_per_sentence, similarity_window) do
     validate_delimiters!(delimiters)
     validate_non_negative_integer!(min_chars_per_sentence, "min_chars_per_sentence")
     validate_non_negative_integer!(similarity_window, "similarity_window")
   end
-
-  defp validate_separator!(separator) when is_binary(separator) and separator != "", do: :ok
-
-  defp validate_separator!(_separator),
-    do: raise(ArgumentError, "separator must be a non-empty string")
 
   defp validate_delimiters!(delimiters) when is_list(delimiters) and delimiters != [] do
     if Enum.all?(delimiters, &(is_binary(&1) and &1 != "")),

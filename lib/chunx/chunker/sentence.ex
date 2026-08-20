@@ -144,10 +144,10 @@ defmodule Chunx.Chunker.Sentence do
   defp prepare_sentences(text, tokenizer, config) do
     text
     |> split_sentences(config)
-    |> convert_sentences_to_chunks(tokenizer, config)
+    |> convert_sentences_to_chunks(tokenizer)
   end
 
-  defp convert_sentences_to_chunks(sentences, tokenizer, _config) do
+  defp convert_sentences_to_chunks(sentences, tokenizer) do
     result =
       Enum.reduce_while(sentences, {0, []}, &add_sentence(&1, &2, tokenizer))
 

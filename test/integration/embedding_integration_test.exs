@@ -64,7 +64,7 @@ defmodule Chunx.EmbeddingIntegrationTest do
       "Cats sleep on soft blankets. Felines enjoy warm resting places. " <>
         "Database indexes accelerate queries."
 
-    sentences = Sentences.split_sentences(text, <<0>>, ["."], 0)
+    sentences = Sentences.split_sentences(text, ["."], 0)
     expected_groups = Sentences.build_sentence_groups(sentences, 1)
     expected_embeddings = embedding_fun.(expected_groups)
 

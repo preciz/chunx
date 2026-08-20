@@ -7,6 +7,10 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Removed
+
+- Removed the no-op Semantic `:separator` option.
+
 ## [0.2.0] - 2026-08-21
 
 ### Added

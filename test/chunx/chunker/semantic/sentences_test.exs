@@ -160,10 +160,6 @@ defmodule Chunx.Chunker.Semantic.SentencesTest do
       tokenizer: tokenizer,
       embedding_fun: embedding_fun
     } do
-      assert_raise ArgumentError, "separator must be a non-empty string", fn ->
-        Sentences.prepare_sentences("Text.", tokenizer, embedding_fun, separator: "")
-      end
-
       assert_raise ArgumentError, "delimiters must contain non-empty strings", fn ->
         Sentences.prepare_sentences("Text.", tokenizer, embedding_fun, delimiters: [])
       end
@@ -273,28 +269,28 @@ defmodule Chunx.Chunker.Semantic.SentencesTest do
     end
   end
 
-  describe "split_sentences/4" do
+  describe "split_sentences/3" do
     test "splits text on basic delimiters" do
       text = "Hello. How are you? I'm good! Thanks."
-      result = Sentences.split_sentences(text, "🦛", [".", "!", "?"], 1)
+      result = Sentences.split_sentences(text, [".", "!", "?"], 1)
       assert result == ["Hello.", " How are you?", " I'm good!", " Thanks."]
     end
 
     test "handles newlines as delimiters" do
       text = "Line one.\nLine two\nLine three."
-      result = Sentences.split_sentences(text, "🦛", [".", "\n"], 1)
+      result = Sentences.split_sentences(text, [".", "\n"], 1)
       assert result == ["Line one.\n", "Line two\n", "Line three."]
     end
 
     test "handles custom delimiters" do
       text = "Part 1;Part 2;Part 3"
-      result = Sentences.split_sentences(text, "🦛", [";"], 1)
+      result = Sentences.split_sentences(text, [";"], 1)
       assert result == ["Part 1;", "Part 2;", "Part 3"]
     end
 
-    test "preserves content equal to the legacy separator marker" do
+    test "preserves control characters in content" do
       text = "Hello 🦛 friend. Next sentence."
-      result = Sentences.split_sentences(text, "🦛", ["."], 1)
+      result = Sentences.split_sentences(text, ["."], 1)
 
       assert result == ["Hello 🦛 friend.", " Next sentence."]
       assert Enum.join(result) == text
@@ -302,23 +298,23 @@ defmodule Chunx.Chunker.Semantic.SentencesTest do
 
     test "rejects empty delimiters" do
       assert_raise ArgumentError, "delimiters must contain non-empty strings", fn ->
-        Sentences.split_sentences("Text.", "🦛", [], 1)
+        Sentences.split_sentences("Text.", [], 1)
       end
     end
 
     test "handles empty text" do
-      assert Sentences.split_sentences("", "🦛", [".", "!", "?"], 1) == []
+      assert Sentences.split_sentences("", [".", "!", "?"], 1) == []
     end
 
     test "handles text with no delimiters" do
       text = "This is a single sentence without delimiters"
-      result = Sentences.split_sentences(text, "🦛", [".", "!", "?"], 1)
+      result = Sentences.split_sentences(text, [".", "!", "?"], 1)
       assert result == ["This is a single sentence without delimiters"]
     end
 
     test "handles multiple consecutive delimiters" do
       text = "Hello...World!!!"
-      result = Sentences.split_sentences(text, "🦛", [".", "!"], 1)
+      result = Sentences.split_sentences(text, [".", "!"], 1)
       assert result == ["Hello.", ".", ".", "World!", "!", "!"]
     end
   end

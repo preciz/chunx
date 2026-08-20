@@ -16,7 +16,6 @@ defmodule Chunx.Chunker.Semantic do
           min_sentences: pos_integer(),
           min_chunk_size: pos_integer(),
           threshold_step: float(),
-          separator: String.t(),
           delimiters: nonempty_list(String.t()),
           min_chars_per_sentence: non_neg_integer(),
           similarity_window: non_neg_integer()
@@ -50,8 +49,6 @@ defmodule Chunx.Chunker.Semantic do
       joining short sentence fragments (default: 12).
     * `:similarity_window` - Number of neighboring sentences included on each
       side of each embedding input (default: 1).
-    * `:separator` - Compatibility option. It must be non-empty and otherwise
-      has no effect.
   """
   @spec chunk(
           binary(),

@@ -1,9 +1,6 @@
 defmodule Chunx.Helper do
   @moduledoc false
 
-  @doc """
-  Provides mathematical and statistical helper functions for list analysis.
-  """
   @spec median(nonempty_list(number())) :: number()
   def median(values) do
     sorted = Enum.sort(values)
