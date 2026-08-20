@@ -94,6 +94,10 @@ defmodule Chunx.TokenizerContractTest do
       text = Enum.join(fragments)
 
       for tokenizer <- tokenizers do
+        assert {:ok, token_count} = TokenizerBoundary.count(tokenizer, text)
+        assert {:ok, offsets} = TokenizerBoundary.offsets(tokenizer, text)
+        assert token_count == length(offsets)
+
         assert {:ok, token_chunks} =
                  Token.chunk(text, tokenizer, chunk_size: chunk_size, chunk_overlap: 0)
 

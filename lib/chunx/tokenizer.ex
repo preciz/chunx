@@ -26,6 +26,17 @@ defmodule Chunx.Tokenizer do
   end
 
   @spec count(t(), binary()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def count(%Tokenizers.Tokenizer{} = tokenizer, text) do
+    with {:ok, encoding} <- Tokenizers.Tokenizer.encode(tokenizer, text) do
+      count =
+        encoding
+        |> Tokenizers.Encoding.get_offsets()
+        |> Enum.count(fn {start_byte, end_byte} -> start_byte < end_byte end)
+
+      {:ok, count}
+    end
+  end
+
   def count(tokenizer, text) do
     with {:ok, offsets} <- offsets(tokenizer, text) do
       {:ok, length(offsets)}
@@ -60,15 +71,21 @@ defmodule Chunx.Tokenizer do
     unit_tuple = List.to_tuple(units)
 
     token_units =
-      units
-      |> Enum.with_index()
-      |> Enum.flat_map(fn {{_, _, count}, index} -> List.duplicate(index, count) end)
-      |> List.to_tuple()
+      if Enum.all?(units, fn {_, _, count} -> count == 1 end) do
+        nil
+      else
+        units
+        |> Enum.with_index()
+        |> Enum.flat_map(fn {{_, _, count}, index} -> List.duplicate(index, count) end)
+        |> List.to_tuple()
+      end
+
+    total = if token_units, do: tuple_size(token_units), else: tuple_size(unit_tuple)
 
     pack_windows(
       unit_tuple,
       token_units,
-      tuple_size(token_units),
+      total,
       chunk_size,
       chunk_size - overlap,
       0,
@@ -152,8 +169,8 @@ defmodule Chunx.Tokenizer do
        do: Enum.reverse(groups)
 
   defp pack_windows(units, token_units, total, size, step, start, previous, groups) do
-    first = elem(token_units, start)
-    last = elem(token_units, min(start + size, total) - 1)
+    first = unit_index(token_units, start)
+    last = unit_index(token_units, min(start + size, total) - 1)
     range = {first, last}
 
     groups =
@@ -165,4 +182,7 @@ defmodule Chunx.Tokenizer do
 
     pack_windows(units, token_units, total, size, step, start + step, range, groups)
   end
+
+  defp unit_index(nil, token_index), do: token_index
+  defp unit_index(token_units, token_index), do: elem(token_units, token_index)
 end
