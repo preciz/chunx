@@ -99,6 +99,17 @@ See the documentation for each chunker module for detailed configuration options
 mix test
 ```
 
+Real-model embedding integration tests are excluded by default because they
+download and run a Hugging Face model. Enable them explicitly with:
+
+```bash
+CHUNX_EMBEDDING_INTEGRATION=1 mix test --only embedding_integration
+```
+
+The default model is `sentence-transformers/all-MiniLM-L6-v2`. Override it with
+`CHUNX_EMBEDDING_MODEL`, provided the model is supported by Bumblebee's text
+embedding serving and `Tokenizers.Tokenizer.from_pretrained/1`.
+
 ## License
 
 [MIT License](LICENSE)
