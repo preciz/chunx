@@ -67,6 +67,15 @@ defmodule Chunx.Chunker.SemanticTest do
         )
 
       assert chunks == []
+
+      {:ok, chunks} =
+        Semantic.chunk(
+          " \n\t ",
+          tokenizer,
+          serving_fun
+        )
+
+      assert chunks == []
     end
 
     test "handles single sentence", context do
@@ -171,6 +180,7 @@ defmodule Chunx.Chunker.SemanticTest do
         )
 
       assert length(chunks) > 1
+      assert Enum.all?(chunks, &(&1.token_count <= 6))
     end
 
     test "respects chunk size limits", context do
@@ -228,7 +238,30 @@ defmodule Chunx.Chunker.SemanticTest do
         extracted_text =
           binary_part(@sample_text, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
-        assert String.trim(chunk.text) == String.trim(extracted_text)
+        assert chunk.text == extracted_text
+      end)
+    end
+
+    test "reconstructs the original text and reports exact token counts", context do
+      %{tokenizer: tokenizer} = context
+
+      embedding_fun = fn inputs ->
+        Enum.map(inputs, fn _ -> Nx.tensor([1.0, 0.0]) end)
+      end
+
+      {:ok, chunks} =
+        Semantic.chunk(
+          @sample_text,
+          tokenizer,
+          embedding_fun,
+          threshold: 0.0
+        )
+
+      assert Enum.map_join(chunks, & &1.text) == @sample_text
+
+      Enum.each(chunks, fn chunk ->
+        {:ok, encoding} = Tokenizers.Tokenizer.encode(tokenizer, chunk.text)
+        assert chunk.token_count == Tokenizers.Encoding.get_length(encoding)
       end)
     end
 

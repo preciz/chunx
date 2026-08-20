@@ -40,6 +40,7 @@ defmodule Chunx.Chunker.WordTest do
   describe "chunk/3" do
     test "handles empty text", %{tokenizer: tokenizer} do
       assert {:ok, []} = Word.chunk("", tokenizer)
+      assert {:ok, []} = Word.chunk(" \n\t ", tokenizer)
     end
 
     test "creates chunks with default options", %{tokenizer: tokenizer} do
@@ -151,6 +152,16 @@ defmodule Chunx.Chunker.WordTest do
       Enum.each(chunks, fn chunk ->
         assert binary_part(text, chunk.start_byte, chunk.end_byte - chunk.start_byte) ==
                  chunk.text
+      end)
+    end
+
+    test "reports the encoded token count for every chunk", %{tokenizer: tokenizer} do
+      {:ok, chunks} =
+        Word.chunk(@sample_text, tokenizer, chunk_size: 20, chunk_overlap: 5)
+
+      Enum.each(chunks, fn chunk ->
+        {:ok, encoding} = Tokenizers.Tokenizer.encode(tokenizer, chunk.text)
+        assert chunk.token_count == Tokenizers.Encoding.get_length(encoding)
       end)
     end
 

@@ -35,6 +35,7 @@ defmodule Chunx.Chunker.SentenceTest do
   describe "chunk/3" do
     test "handles empty text", %{tokenizer: tokenizer} do
       assert {:ok, []} = Sentence.chunk("", tokenizer)
+      assert {:ok, []} = Sentence.chunk(" \n\t ", tokenizer)
     end
 
     test "handles single sentence", %{tokenizer: tokenizer} do
@@ -237,6 +238,12 @@ defmodule Chunx.Chunker.SentenceTest do
         {:ok, encoding} = Tokenizers.Tokenizer.encode(tokenizer, chunk.text)
         assert chunk.token_count == Tokenizers.Encoding.get_length(encoding)
       end)
+    end
+
+    test "reconstructs the original text without overlap", %{tokenizer: tokenizer} do
+      {:ok, chunks} = Sentence.chunk(@sample_text, tokenizer, chunk_overlap: 0)
+
+      assert Enum.map_join(chunks, & &1.text) == @sample_text
     end
 
     test "handles custom delimiters", %{tokenizer: tokenizer} do

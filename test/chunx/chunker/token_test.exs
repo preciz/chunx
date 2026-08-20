@@ -38,6 +38,8 @@ defmodule Chunx.Chunker.TokenTest do
   describe "chunk/3" do
     test "handles empty text", %{tokenizer: tokenizer} do
       assert {:ok, []} = Token.chunk("", tokenizer)
+      assert {:ok, []} = Token.chunk(" \n\t ", tokenizer)
+      assert {:ok, []} = Token.chunk(<<0>>, tokenizer)
     end
 
     test "creates chunks with default options", %{tokenizer: tokenizer} do
@@ -137,7 +139,7 @@ defmodule Chunx.Chunker.TokenTest do
         extracted_text =
           binary_part(@sample_text, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
-        assert String.trim(chunk.text) == String.trim(extracted_text)
+        assert chunk.text == extracted_text
       end)
     end
 
@@ -152,7 +154,19 @@ defmodule Chunx.Chunker.TokenTest do
         extracted_text =
           binary_part(@complex_markdown, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
-        assert String.trim(chunk.text) == String.trim(extracted_text)
+        assert chunk.text == extracted_text
+      end)
+    end
+
+    test "reports the encoded token count for every chunk" do
+      {:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")
+
+      {:ok, chunks} =
+        Token.chunk(@sample_text, tokenizer, chunk_size: 20, chunk_overlap: 5)
+
+      Enum.each(chunks, fn chunk ->
+        {:ok, encoding} = Tokenizers.Tokenizer.encode(tokenizer, chunk.text)
+        assert chunk.token_count == Tokenizers.Encoding.get_length(encoding)
       end)
     end
 

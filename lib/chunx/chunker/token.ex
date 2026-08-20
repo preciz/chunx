@@ -42,14 +42,18 @@ defmodule Chunx.Chunker.Token do
     opts = Keyword.merge(@default_opts, opts)
     config = validate_config!(opts)
 
-    with {:ok, encoding} <- Tokenizers.Tokenizer.encode(tokenizer, text) do
-      chunks =
-        encoding
-        |> Tokenizers.Encoding.get_offsets()
-        |> get_valid_token_positions()
-        |> chunk_text(text, config)
+    if String.trim(text) == "" do
+      {:ok, []}
+    else
+      with {:ok, encoding} <- Tokenizers.Tokenizer.encode(tokenizer, text) do
+        chunks =
+          encoding
+          |> Tokenizers.Encoding.get_offsets()
+          |> get_valid_token_positions()
+          |> chunk_text(text, config)
 
-      {:ok, chunks}
+        {:ok, chunks}
+      end
     end
   end
 
