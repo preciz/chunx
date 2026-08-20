@@ -169,23 +169,25 @@ defmodule Chunx.Chunker.Sentence do
   end
 
   defp create_chunks(sentences, tokenizer, config) do
-    do_create_chunks(sentences, tokenizer, config, [], 0)
+    sentences = List.to_tuple(sentences)
+    do_create_chunks(sentences, tuple_size(sentences), tokenizer, config, [], 0)
   end
 
-  defp do_create_chunks(sentences, _tokenizer, _config, sentence_chunks, pos)
-       when pos >= length(sentences) do
+  defp do_create_chunks(_sentences, total, _tokenizer, _config, sentence_chunks, pos)
+       when pos >= total do
     Enum.reverse(sentence_chunks)
   end
 
-  defp do_create_chunks(sentences, tokenizer, config, sentence_chunks, pos) do
-    {chunk_sentences, split_idx} = split_at_chunk_boundary(sentences, pos, config)
+  defp do_create_chunks(sentences, total, tokenizer, config, sentence_chunks, pos) do
+    {chunk_sentences, split_idx} = split_at_chunk_boundary(sentences, total, pos, config)
 
     case create_sentence_chunk(chunk_sentences, tokenizer) do
       %SentenceChunk{} = sentence_chunk ->
-        next_pos = find_overlap_start(chunk_sentences, split_idx, length(sentences), config)
+        next_pos = find_overlap_start(chunk_sentences, split_idx, total, config)
 
         do_create_chunks(
           sentences,
+          total,
           tokenizer,
           config,
           [sentence_chunk | sentence_chunks],
@@ -194,23 +196,23 @@ defmodule Chunx.Chunker.Sentence do
     end
   end
 
-  defp split_at_chunk_boundary(sentences, pos, config) do
-    {chunk_sentences, _total} =
-      sentences
-      |> Enum.drop(pos)
-      |> Enum.reduce_while({[], 0}, fn sentence, {acc, current_tokens} ->
-        total_tokens = current_tokens + sentence.token_count
+  defp split_at_chunk_boundary(sentences, total, pos, config) do
+    take_sentences(sentences, total, pos, config, [], 0, 0)
+  end
 
-        if total_tokens <= config.chunk_size or length(acc) < config.min_sentences_per_chunk do
-          {:cont, {[sentence | acc], total_tokens}}
-        else
-          {:halt, {acc, current_tokens}}
-        end
-      end)
+  defp take_sentences(_sentences, total, pos, _config, acc, _tokens, _count)
+       when pos >= total,
+       do: {Enum.reverse(acc), pos}
 
-    chunk_sentences = Enum.reverse(chunk_sentences)
+  defp take_sentences(sentences, total, pos, config, acc, tokens, count) do
+    sentence = elem(sentences, pos)
+    new_tokens = tokens + sentence.token_count
 
-    {chunk_sentences, pos + length(chunk_sentences)}
+    if new_tokens <= config.chunk_size or count < config.min_sentences_per_chunk do
+      take_sentences(sentences, total, pos + 1, config, [sentence | acc], new_tokens, count + 1)
+    else
+      {Enum.reverse(acc), pos}
+    end
   end
 
   defp create_sentence_chunk(sentences, tokenizer) do

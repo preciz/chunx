@@ -31,13 +31,20 @@ defmodule Chunx.Chunker.SentenceSplitter do
   defp next_delimiter(text, delimiters, offset) do
     scope = {offset, byte_size(text) - offset}
 
-    delimiters
-    |> Enum.flat_map(fn delimiter ->
+    Enum.reduce(delimiters, nil, fn delimiter, closest ->
       case :binary.match(text, delimiter, scope: scope) do
-        {position, length} -> [{position, length}]
-        :nomatch -> []
+        :nomatch -> closest
+        match -> closer_match(match, closest)
       end
     end)
-    |> Enum.min_by(fn {position, length} -> {position, -length} end, fn -> nil end)
   end
+
+  defp closer_match(match, nil), do: match
+
+  defp closer_match({position, length} = match, {closest_position, closest_length})
+       when position < closest_position or
+              (position == closest_position and length > closest_length),
+       do: match
+
+  defp closer_match(_match, closest), do: closest
 end

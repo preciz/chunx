@@ -49,7 +49,7 @@ defmodule Chunx.Chunker.Token do
         chunks =
           encoding
           |> Tokenizers.Encoding.get_offsets()
-          |> get_valid_token_positions()
+          |> reject_empty_offsets()
           |> chunk_text(text, config)
 
         {:ok, chunks}
@@ -89,37 +89,33 @@ defmodule Chunx.Chunker.Token do
   defp normalize_overlap!(_overlap, _size),
     do: raise(ArgumentError, "chunk_overlap must be an integer or float")
 
-  defp get_valid_token_positions(offsets) do
-    offsets
-    |> Enum.with_index()
-    |> Enum.reject(fn {{start_pos, end_pos}, _} -> start_pos == end_pos end)
-  end
+  defp reject_empty_offsets(offsets),
+    do: Enum.reject(offsets, fn {start_pos, end_pos} -> start_pos == end_pos end)
 
   defp chunk_text([], _text, _config), do: []
 
-  defp chunk_text(valid_tokens, text, config) do
-    valid_tokens
-    |> calculate_chunk_boundaries(config)
-    |> Enum.map(&create_chunk(valid_tokens, text, &1))
+  defp chunk_text(valid_offsets, text, %{chunk_size: size, chunk_overlap: overlap}) do
+    offsets = List.to_tuple(valid_offsets)
+    build_chunks(offsets, text, size, size - overlap, 0, tuple_size(offsets), [])
   end
 
-  defp calculate_chunk_boundaries(valid_tokens, %{chunk_size: size, chunk_overlap: overlap}) do
-    total_tokens = length(valid_tokens)
-    step = size - overlap
+  defp build_chunks(_offsets, _text, _size, _step, start, total, chunks)
+       when start >= total,
+       do: Enum.reverse(chunks)
 
-    0..total_tokens//step
-    |> Enum.map(fn start -> {start, min(start + size, total_tokens)} end)
-    |> Enum.take_while(fn {start, end_} -> end_ > start end)
-  end
+  defp build_chunks(offsets, text, size, step, start, total, chunks) do
+    end_position = min(start + size, total)
+    {start_offset, _} = elem(offsets, start)
+    {_, end_offset} = elem(offsets, end_position - 1)
 
-  defp create_chunk(valid_tokens, text, {start_position, end_position}) do
-    tokens = Enum.slice(valid_tokens, start_position, end_position - start_position)
-    {{start_offset, _}, _} = hd(tokens)
-    {{_, end_offset}, _} = List.last(tokens)
+    chunk =
+      Chunx.Chunk.new(
+        binary_part(text, start_offset, end_offset - start_offset),
+        start_offset,
+        end_offset,
+        end_position - start
+      )
 
-    text_slice = binary_part(text, start_offset, end_offset - start_offset)
-    token_count = end_position - start_position
-
-    Chunx.Chunk.new(text_slice, start_offset, end_offset, token_count, nil)
+    build_chunks(offsets, text, size, step, start + step, total, [chunk | chunks])
   end
 end

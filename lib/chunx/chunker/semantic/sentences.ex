@@ -114,16 +114,19 @@ defmodule Chunx.Chunker.Semantic.Sentences do
   @spec build_sentence_groups(list(binary()), non_neg_integer()) :: list(binary())
   def build_sentence_groups(sentences, 0), do: sentences
 
+  def build_sentence_groups([], similarity_window)
+      when is_integer(similarity_window) and similarity_window > 0,
+      do: []
+
   def build_sentence_groups(sentences, similarity_window)
       when is_integer(similarity_window) and similarity_window > 0 do
-    len = length(sentences)
+    sentence_tuple = List.to_tuple(sentences)
+    last_index = tuple_size(sentence_tuple) - 1
 
-    sentences
-    |> Enum.with_index()
-    |> Enum.map(fn {_sentence, index} ->
-      sentences
-      |> Enum.slice(max(0, index - similarity_window)..min(len - 1, index + similarity_window))
-      |> Enum.join()
+    Enum.map(0..last_index, fn index ->
+      first = max(0, index - similarity_window)
+      last = min(last_index, index + similarity_window)
+      Enum.map_join(first..last, &elem(sentence_tuple, &1))
     end)
   end
 

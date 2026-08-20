@@ -35,6 +35,21 @@ defmodule Chunx.Chunker.RecursiveTest do
       assert {:ok, []} = Recursive.chunk(<<0>>, tokenizer)
     end
 
+    test "keeps ignored content beside tokenized text" do
+      {:ok, tokenizer} =
+        Tokenizers.Tokenizer.from_pretrained("distilbert/distilbert-base-uncased")
+
+      text = <<0>> <> " alpha beta"
+
+      assert {:ok, chunks} =
+               Recursive.chunk(text, tokenizer,
+                 chunk_size: 1,
+                 levels: [:whitespace, :tokens]
+               )
+
+      assert_valid_chunks(chunks, text, tokenizer, 1)
+    end
+
     test "returns a short input as one chunk", %{tokenizer: tokenizer} do
       assert {:ok, [%Chunk{} = chunk]} = Recursive.chunk("A", tokenizer, chunk_size: 1)
       assert chunk.text == "A"

@@ -126,42 +126,16 @@ defmodule Chunx.Chunker.Semantic do
   end
 
   defp compute_avg_similarities(sentences) do
-    similarities = compute_pairwise_similarities(sentences)
-
-    all_similarities =
-      similarities
-      |> Enum.flat_map(fn {i, j, similarity} ->
-        [{i, similarity}, {j, similarity}]
-      end)
-      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
-
-    0..(length(sentences) - 1)
-    |> Enum.map(fn i ->
-      list = all_similarities[i]
-      Enum.sum(list) / length(list)
-    end)
+    sentences
+    |> compute_pairwise_similarities()
+    |> average_adjacent_similarities()
   end
 
   defp calculate_threshold_via_binary_search(sentences, config) do
     similarities = compute_pairwise_similarities(sentences)
-
-    all_similarities =
-      similarities
-      |> Enum.flat_map(fn {i, j, similarity} ->
-        [{i, similarity}, {j, similarity}]
-      end)
-      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
-
-    avg_similarities =
-      0..(length(sentences) - 1)
-      |> Enum.map(fn i ->
-        list = all_similarities[i]
-        Enum.sum(list) / length(list)
-      end)
-
-    similarity_values = Enum.map(similarities, fn {_, _, sim} -> sim end)
-    median = Chunx.Helper.median(similarity_values)
-    std = Chunx.Helper.standard_deviation(similarity_values)
+    avg_similarities = average_adjacent_similarities(similarities)
+    median = Chunx.Helper.median(similarities)
+    std = Chunx.Helper.standard_deviation(similarities)
 
     low = max(median - std, 0.0)
     high = min(median + std, 1.0)
@@ -243,14 +217,25 @@ defmodule Chunx.Chunker.Semantic do
     end
   end
 
-  defp compute_pairwise_similarities(sentences) do
-    sentences = Enum.with_index(sentences)
+  defp compute_pairwise_similarities([sentence | sentences]) do
+    pairwise_similarities(sentences, sentence, [])
+  end
 
-    sentences
-    |> Enum.zip(Enum.drop(sentences, 1))
-    |> Enum.map(fn {{s1, i}, {s2, j}} ->
-      {i, j, cosine_similarity(s1.embedding, s2.embedding)}
-    end)
+  defp pairwise_similarities([], _previous, similarities), do: Enum.reverse(similarities)
+
+  defp pairwise_similarities([sentence | rest], previous, similarities) do
+    similarity = cosine_similarity(previous.embedding, sentence.embedding)
+    pairwise_similarities(rest, sentence, [similarity | similarities])
+  end
+
+  defp average_adjacent_similarities([similarity | similarities]) do
+    [similarity | average_adjacent_similarities(similarities, similarity)]
+  end
+
+  defp average_adjacent_similarities([], previous), do: [previous]
+
+  defp average_adjacent_similarities([similarity | rest], previous) do
+    [(previous + similarity) / 2 | average_adjacent_similarities(rest, similarity)]
   end
 
   defp cosine_similarity(v1, v2) do
@@ -320,7 +305,7 @@ defmodule Chunx.Chunker.Semantic do
 
   defp create_chunk(sentences) do
     text = Enum.map_join(sentences, "", & &1.text)
-    token_count = Enum.sum(Enum.map(sentences, & &1.token_count))
+    token_count = Enum.reduce(sentences, 0, &(&1.token_count + &2))
     start_byte = hd(sentences).start_byte
     end_byte = List.last(sentences).end_byte
 

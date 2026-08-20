@@ -146,33 +146,35 @@ defmodule Chunx.Chunker.Recursive do
   defp split_at_level(text, delimiters), do: SentenceSplitter.split(text, delimiters)
 
   defp merge_splits(splits, tokenizer, chunk_size) do
-    {merged, current} =
-      Enum.reduce(splits, {[], ""}, fn split, {merged, current} ->
-        candidate = current <> split
+    {merged, current, _token_count} =
+      Enum.reduce(splits, {[], "", nil}, &merge_split(&1, &2, tokenizer, chunk_size))
 
-        cond do
-          current == "" ->
-            {merged, split}
+    Enum.reverse([current | merged])
+  end
 
-          count_tokens(current, tokenizer) == 0 ->
-            {merged, candidate}
+  defp merge_split(split, {merged, "", _current_count}, _tokenizer, _chunk_size),
+    do: {merged, split, nil}
 
-          count_tokens(candidate, tokenizer) <= chunk_size ->
-            {merged, candidate}
+  defp merge_split(split, {merged, current, current_count}, tokenizer, chunk_size) do
+    candidate = current <> split
+    current_count = current_count || count_tokens(current, tokenizer)
 
-          true ->
-            {[current | merged], split}
-        end
-      end)
+    if current_count == 0 do
+      {merged, candidate, nil}
+    else
+      case count_tokens(candidate, tokenizer) do
+        candidate_count when candidate_count <= chunk_size ->
+          {merged, candidate, candidate_count}
 
-    [current | merged]
-    |> Enum.reverse()
-    |> Enum.reject(&(&1 == ""))
+        _candidate_count ->
+          {[current | merged], split, nil}
+      end
+    end
   end
 
   defp chunks_from_splits(splits, tokenizer, config, rest, start_byte) do
     {chunks, _end_byte} =
-      Enum.map_reduce(splits, start_byte, fn split, offset ->
+      Enum.flat_map_reduce(splits, start_byte, fn split, offset ->
         token_count = count_tokens(split, tokenizer)
 
         chunks =
@@ -185,7 +187,7 @@ defmodule Chunx.Chunker.Recursive do
         {chunks, offset + byte_size(split)}
       end)
 
-    List.flatten(chunks)
+    chunks
   end
 
   defp split_by_tokens(text, tokenizer, chunk_size, start_byte) do
@@ -197,21 +199,31 @@ defmodule Chunx.Chunker.Recursive do
   end
 
   defp token_groups_to_chunks(groups, text, tokenizer, start_byte) do
-    next_starts =
-      groups
-      |> Enum.drop(1)
-      |> Enum.map(fn [{start_offset, _end_offset} | _rest] -> start_offset end)
-      |> Kernel.++([byte_size(text)])
+    build_token_chunks(groups, text, tokenizer, start_byte, 0, [])
+  end
 
-    groups
-    |> Enum.zip(next_starts)
-    |> Enum.map_reduce(0, fn {_group, end_offset}, offset ->
-      chunk_text = binary_part(text, offset, end_offset - offset)
-      chunk = create_chunk(chunk_text, start_byte + offset, count_tokens(chunk_text, tokenizer))
+  defp build_token_chunks([_group], text, tokenizer, start_byte, offset, chunks) do
+    text
+    |> add_token_chunk(tokenizer, start_byte, offset, byte_size(text), chunks)
+    |> Enum.reverse()
+  end
 
-      {chunk, end_offset}
-    end)
-    |> elem(0)
+  defp build_token_chunks(
+         [_group, [{end_offset, _} | _] = next_group | rest],
+         text,
+         tokenizer,
+         start_byte,
+         offset,
+         chunks
+       ) do
+    chunks = add_token_chunk(text, tokenizer, start_byte, offset, end_offset, chunks)
+    build_token_chunks([next_group | rest], text, tokenizer, start_byte, end_offset, chunks)
+  end
+
+  defp add_token_chunk(text, tokenizer, start_byte, offset, end_offset, chunks) do
+    chunk_text = binary_part(text, offset, end_offset - offset)
+    chunk = create_chunk(chunk_text, start_byte + offset, count_tokens(chunk_text, tokenizer))
+    [chunk | chunks]
   end
 
   defp count_tokens(text, tokenizer), do: length(token_offsets(text, tokenizer))
