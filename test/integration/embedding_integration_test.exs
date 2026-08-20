@@ -5,7 +5,7 @@ defmodule Chunx.EmbeddingIntegrationTest do
   alias Chunx.Chunker.Semantic.Sentences
   alias Scholar.Metrics.Distance
 
-  @moduletag :embedding_integration
+  @moduletag :integration
   @moduletag timeout: 600_000
 
   @default_model "sentence-transformers/all-MiniLM-L6-v2"

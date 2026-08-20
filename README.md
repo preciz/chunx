@@ -103,8 +103,10 @@ Real-model embedding integration tests are excluded by default because they
 download and run a Hugging Face model. Enable them explicitly with:
 
 ```bash
-CHUNX_EMBEDDING_INTEGRATION=1 mix test --only embedding_integration
+mix test --include integration
 ```
+
+To run only the integration tests, use `mix test --only integration`.
 
 The default model is `sentence-transformers/all-MiniLM-L6-v2`. Override it with
 `CHUNX_EMBEDDING_MODEL`, provided the model is supported by Bumblebee's text
