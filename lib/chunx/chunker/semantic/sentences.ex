@@ -15,9 +15,9 @@ defmodule Chunx.Chunker.Semantic.Sentences do
   @spec prepare_sentences(
           text :: binary(),
           tokenizer :: Tokenizer.t(),
-          embedding_fun :: (list(binary()) -> list(Nx.Tensor.t())),
+          embedding_fun :: ([binary()] -> [Nx.Tensor.t()]),
           opts :: keyword()
-        ) :: list(Chunk.t()) | {:error, term()}
+        ) :: [Chunk.t()] | {:error, term()}
   def prepare_sentences(text, tokenizer, embedding_fun, opts \\ [])
       when is_binary(text) and is_function(embedding_fun, 1) do
     separator = Keyword.get(opts, :separator, @separator)
@@ -54,8 +54,8 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     end
   end
 
-  @spec find_sentence_indices(binary(), list(binary())) ::
-          list({binary(), non_neg_integer(), non_neg_integer()})
+  @spec find_sentence_indices(binary(), [binary()]) ::
+          [{binary(), non_neg_integer(), non_neg_integer()}]
   def find_sentence_indices(text, sentences) do
     {sentences_with_indices, _} =
       Enum.reduce(sentences, {[], 0}, fn sentence, {acc, current_idx} ->
@@ -75,14 +75,14 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     Enum.reverse(sentences_with_indices)
   end
 
-  @spec split_sentences(binary(), binary(), list(binary()), non_neg_integer()) :: list(binary())
+  @spec split_sentences(binary(), binary(), [binary()], non_neg_integer()) :: [binary()]
   def split_sentences(text, _separator, delimiters, min_chars_per_sentence) do
     text
     |> SentenceSplitter.split(delimiters)
     |> combine_short_sentences(min_chars_per_sentence)
   end
 
-  @spec combine_short_sentences(list(binary()), non_neg_integer()) :: list(binary())
+  @spec combine_short_sentences([binary()], non_neg_integer()) :: [binary()]
   def combine_short_sentences(splits, min_chars) do
     {sentences, current} =
       Enum.reduce(splits, {[], ""}, fn split, {sentences, current} ->
@@ -121,7 +121,7 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     end
   end
 
-  @spec build_sentence_groups(list(binary()), non_neg_integer()) :: list(binary())
+  @spec build_sentence_groups([binary()], non_neg_integer()) :: [binary()]
   def build_sentence_groups(sentences, 0), do: sentences
 
   def build_sentence_groups([], similarity_window)

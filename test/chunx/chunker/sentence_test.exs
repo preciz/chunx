@@ -220,11 +220,11 @@ defmodule Chunx.Chunker.SentenceTest do
     end
 
     test "validates delimiters", %{tokenizer: tokenizer} do
-      assert_raise ArgumentError, "delimiters must contain at least one element", fn ->
+      assert_raise ArgumentError, "delimiters must contain non-empty strings", fn ->
         Sentence.chunk("test", tokenizer, delimiters: [])
       end
 
-      assert_raise ArgumentError, "delimiters must contain at least one element", fn ->
+      assert_raise ArgumentError, "delimiters must contain non-empty strings", fn ->
         Sentence.chunk("test", tokenizer, delimiters: [""])
       end
     end
@@ -292,6 +292,22 @@ defmodule Chunx.Chunker.SentenceTest do
       assert reconstructed == text
     end
 
+    test "splits on newlines by default", %{tokenizer: tokenizer} do
+      text = "First sufficiently long line\nSecond sufficiently long line"
+
+      assert {:ok, [chunk]} =
+               Sentence.chunk(text, tokenizer,
+                 chunk_size: 100,
+                 chunk_overlap: 0,
+                 short_sentence_threshold: 1
+               )
+
+      assert Enum.map(chunk.sentences, & &1.text) == [
+               "First sufficiently long line\n",
+               "Second sufficiently long line"
+             ]
+    end
+
     test "returns correct value for text", %{tokenizer: tokenizer} do
       {:ok, chunks} =
         Sentence.chunk(
@@ -304,6 +320,7 @@ defmodule Chunx.Chunker.SentenceTest do
           chunk_size: 30,
           chunk_overlap: 10,
           min_sentences_per_chunk: 1,
+          delimiters: [".", "!", "?"],
           short_sentence_threshold: 12
         )
 

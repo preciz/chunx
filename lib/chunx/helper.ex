@@ -2,9 +2,9 @@ defmodule Chunx.Helper do
   @moduledoc false
 
   @doc """
-  Provides math and statistic helper functions for array analysis.
+  Provides mathematical and statistical helper functions for list analysis.
   """
-  @spec median([number()]) :: number()
+  @spec median(nonempty_list(number())) :: number()
   def median(values) do
     sorted = Enum.sort(values)
     len = length(sorted)
@@ -16,7 +16,7 @@ defmodule Chunx.Helper do
     end
   end
 
-  @spec standard_deviation([number()]) :: float()
+  @spec standard_deviation(nonempty_list(number())) :: float()
   def standard_deviation(values) do
     count = length(values)
     mean = Enum.sum(values) / count

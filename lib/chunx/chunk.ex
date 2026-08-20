@@ -4,8 +4,8 @@ defmodule Chunx.Chunk do
 
   ## Fields
     * `:text` - The text content of the chunk
-    * `:start_byte` - The starting index of the chunk in the original text
-    * `:end_byte` - The ending index of the chunk in the original text
+    * `:start_byte` - The starting byte offset of the chunk in the original text
+    * `:end_byte` - The ending byte offset of the chunk in the original text
     * `:token_count` - The number of content tokens in the chunk, excluding
       tokenizer entries without a byte span
     * `:embedding` - The embedding vector for the chunk (optional)
@@ -18,7 +18,7 @@ defmodule Chunx.Chunk do
           text: String.t(),
           start_byte: non_neg_integer(),
           end_byte: non_neg_integer(),
-          token_count: pos_integer(),
+          token_count: non_neg_integer(),
           embedding: Nx.Tensor.t() | nil
         }
 

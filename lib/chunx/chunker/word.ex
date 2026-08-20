@@ -1,6 +1,6 @@
 defmodule Chunx.Chunker.Word do
   @moduledoc """
-  Implements word based chunking strategy.
+  Implements a word-based chunking strategy.
 
   Splits text into overlapping chunks based on words while
   respecting token limits.

@@ -1,13 +1,45 @@
 defmodule Chunx.Tokenizer do
-  @moduledoc false
+  @moduledoc """
+  Defines the tokenizer boundary used by Chunx chunkers.
 
+  Chunkers accept either a native `Tokenizers.Tokenizer` or an adapter tuple
+  containing a module that implements this behaviour and its state:
+
+      defmodule MyTokenizer do
+        @behaviour Chunx.Tokenizer
+
+        @impl true
+        def offsets(state, text) do
+          # Return half-open byte offsets for every content token.
+          {:ok, state.offsets.(text)}
+        end
+      end
+
+      tokenizer = {MyTokenizer, %{offsets: &token_offsets/1}}
+
+  Empty spans are treated as non-content tokens. Valid spans are normalized to
+  grapheme boundaries before chunking, so byte-level tokenizers cannot split a
+  grapheme. Adapter errors are returned unchanged by the chunkers.
+  """
+
+  @typedoc "A half-open content-token byte range."
   @type offset :: {non_neg_integer(), non_neg_integer()}
+
+  @typedoc false
   @type unit :: {non_neg_integer(), non_neg_integer(), pos_integer()}
+
+  @typedoc "A native tokenizer or a `{module, state}` tokenizer adapter."
   @type t :: Tokenizers.Tokenizer.t() | {module(), term()}
 
+  @doc """
+  Adapter callback returning half-open byte offsets for `text`.
+  """
   @callback offsets(state :: term(), text :: binary()) ::
               {:ok, [offset()]} | {:error, term()}
 
+  @doc """
+  Returns validated content-token offsets normalized to grapheme boundaries.
+  """
   @spec offsets(t(), binary()) :: {:ok, [offset()]} | {:error, term()}
   def offsets(%Tokenizers.Tokenizer{} = tokenizer, text) do
     with {:ok, encoding} <- Tokenizers.Tokenizer.encode(tokenizer, text) do
@@ -25,6 +57,7 @@ defmodule Chunx.Tokenizer do
     end
   end
 
+  @doc "Returns the number of content tokens in `text`."
   @spec count(t(), binary()) :: {:ok, non_neg_integer()} | {:error, term()}
   def count(%Tokenizers.Tokenizer{} = tokenizer, text) do
     with {:ok, encoding} <- Tokenizers.Tokenizer.encode(tokenizer, text) do
@@ -43,6 +76,7 @@ defmodule Chunx.Tokenizer do
     end
   end
 
+  @doc false
   @spec units([offset()]) :: [unit()]
   def units(offsets) do
     offsets
@@ -50,6 +84,7 @@ defmodule Chunx.Tokenizer do
     |> Enum.reverse()
   end
 
+  @doc false
   @spec pack([unit()], pos_integer(), non_neg_integer()) :: [[unit()]]
   def pack([], _chunk_size, _overlap), do: []
 

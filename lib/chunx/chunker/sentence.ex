@@ -1,6 +1,6 @@
 defmodule Chunx.Chunker.Sentence do
   @moduledoc """
-  Implements sentence based chunking strategy.
+  Implements a sentence-based chunking strategy.
 
   Splits text into overlapping chunks based on sentences while
   respecting token limits.
@@ -15,9 +15,9 @@ defmodule Chunx.Chunker.Sentence do
 
   @type chunk_opts :: [
           chunk_size: pos_integer(),
-          chunk_overlap: pos_integer(),
+          chunk_overlap: non_neg_integer(),
           min_sentences_per_chunk: pos_integer(),
-          delimiters: list(String.t()),
+          delimiters: [String.t()],
           short_sentence_threshold: pos_integer()
         ]
 
@@ -25,7 +25,7 @@ defmodule Chunx.Chunker.Sentence do
     chunk_size: 512,
     chunk_overlap: 128,
     min_sentences_per_chunk: 1,
-    delimiters: ~w(. ! ? \\n),
+    delimiters: [".", "!", "?", "\n"],
     short_sentence_threshold: 6
   ]
 
@@ -46,7 +46,7 @@ defmodule Chunx.Chunker.Sentence do
       would exceed chunk_size.
 
     * `:delimiters` - List of sentence delimiters. Sentences will be split
-      at these delimiters. (default: ["." "!" "?" "\\n"])
+      at these delimiters. (default: `[".", "!", "?", "\\n"]`)
 
     * `:short_sentence_threshold` - Below this byte size a sentence is considered too short and will be
        concatenated with the next sentence. (default: 6)
@@ -119,11 +119,11 @@ defmodule Chunx.Chunker.Sentence do
   defp validate_delimiters!(delimiters) when is_list(delimiters) and delimiters != [] do
     if Enum.all?(delimiters, &(is_binary(&1) and &1 != "")),
       do: :ok,
-      else: raise(ArgumentError, "delimiters must contain at least one element")
+      else: raise(ArgumentError, "delimiters must contain non-empty strings")
   end
 
   defp validate_delimiters!(_delimiters),
-    do: raise(ArgumentError, "delimiters must contain at least one element")
+    do: raise(ArgumentError, "delimiters must contain non-empty strings")
 
   defp split_sentences(text, config) do
     text

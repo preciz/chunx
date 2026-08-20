@@ -29,7 +29,7 @@ Add `chunx` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:chunx, "~> 0.1.0"}
+    {:chunx, "~> 0.2.0"}
   ]
 end
 ```
@@ -84,9 +84,10 @@ finally token boundaries until every chunk fits within the configured size.
 
 Each chunking strategy accepts various options to customize the chunking behavior:
 
-- `chunk_size`: Maximum number of tokens per chunk
-- `chunk_overlap`: Number of tokens or percentage to overlap between chunks
-- `min_sentences`: Minimum number of sentences per chunk (for sentence-based)
+- `chunk_size`: Maximum number of content tokens per chunk
+- `chunk_overlap`: Number or proportion of content tokens shared by consecutive chunks
+- `min_sentences_per_chunk`: Minimum number of sentences per sentence-based chunk
+- `min_sentences`: Minimum number of sentences per semantic chunk
 - `threshold`: Similarity threshold for semantic chunking
 - And more...
 

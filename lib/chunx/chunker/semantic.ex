@@ -18,7 +18,11 @@ defmodule Chunx.Chunker.Semantic do
           threshold: float() | :auto,
           min_sentences: pos_integer(),
           min_chunk_size: pos_integer(),
-          threshold_step: float()
+          threshold_step: float(),
+          separator: String.t(),
+          delimiters: [String.t()],
+          min_chars_per_sentence: non_neg_integer(),
+          similarity_window: non_neg_integer()
         ]
 
   @default_opts [
@@ -38,11 +42,17 @@ defmodule Chunx.Chunker.Semantic do
     * `:min_sentences` - Minimum number of sentences per chunk (default: 1)
     * `:min_chunk_size` - Minimum number of content tokens per chunk (default: 2)
     * `:threshold_step` - Step size for threshold calculation (default: 0.01)
+    * `:delimiters` - Sentence delimiters (default: `[".", "!", "?", "\\n"]`)
+    * `:min_chars_per_sentence` - Minimum trimmed character count used when
+      grouping short sentence fragments (default: 12)
+    * `:similarity_window` - Number of neighboring sentences included on each
+      side when generating sentence embeddings (default: 1)
+    * `:separator` - Reserved non-empty separator used by sentence preparation
   """
   @spec chunk(
           binary(),
           Tokenizer.t(),
-          (list(String.t()) -> list(Nx.Tensor.t())),
+          Chunx.Chunker.embedding_fun(),
           chunk_opts()
         ) ::
           {:ok, [SentenceChunk.t()]} | {:error, term()}

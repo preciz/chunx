@@ -1,6 +1,6 @@
 defmodule Chunx.Chunker.Token do
   @moduledoc """
-  Implements token based chunking strategy.
+  Implements a token-based chunking strategy.
 
   Splits text into overlapping chunks based on token count using the given tokenizer.
   """

@@ -1,5 +1,5 @@
 Mix.install([
-  {:chunx, "~> 0.1.0"}
+  {:chunx, "~> 0.2.0"}
 ])
 
 defmodule Demo do

@@ -4,10 +4,11 @@ defmodule Chunx.SentenceChunk do
 
   ## Fields
     * `:text` - The text content of the chunk
-    * `:start_byte` - The starting index of the chunk in the original text
-    * `:end_byte` - The ending index of the chunk in the original text
-    * `:token_count` - The number of tokens in the chunk
-    * `:sentences` - List of Chunk structs in the chunk
+    * `:start_byte` - The starting byte offset of the chunk in the original text
+    * `:end_byte` - The ending byte offset of the chunk in the original text
+    * `:token_count` - The number of content tokens in the chunk, excluding
+      tokenizer entries without a byte span
+    * `:sentences` - The list of `Chunx.Chunk` structs in the chunk
   """
 
   @enforce_keys [:text, :start_byte, :end_byte, :token_count, :sentences]
