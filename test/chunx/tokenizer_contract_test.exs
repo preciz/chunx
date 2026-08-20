@@ -80,6 +80,25 @@ defmodule Chunx.TokenizerContractTest do
              [{0, 4, 3}, {4, 5, 1}]
   end
 
+  property "packs ordinary token units like the sliding-window reference model" do
+    check all(
+            unit_count <- integer(1..100),
+            chunk_size <- integer(1..30),
+            overlap <- integer(0..(chunk_size - 1))
+          ) do
+      units = Enum.map(0..(unit_count - 1), &{&1, &1 + 1, 1})
+      step = chunk_size - overlap
+
+      expected =
+        0
+        |> Stream.iterate(&(&1 + step))
+        |> Enum.take_while(&(&1 < unit_count))
+        |> Enum.map(&Enum.slice(units, &1, chunk_size))
+
+      assert TokenizerBoundary.pack(units, chunk_size, overlap) == expected
+    end
+  end
+
   property "token and recursive chunks remain byte-safe across tokenizers and Unicode", %{
     tokenizers: tokenizers
   } do
