@@ -18,13 +18,13 @@ defmodule Chunx.Helper do
 
   @spec standard_deviation([number()]) :: float()
   def standard_deviation(values) do
-    mean = Enum.sum(values) / length(values)
+    count = length(values)
+    mean = Enum.sum(values) / count
 
     variance =
-      values
-      |> Enum.map(fn x -> :math.pow(x - mean, 2) end)
-      |> Enum.sum()
-      |> Kernel./(length(values))
+      Enum.reduce(values, 0, fn value, sum ->
+        sum + :math.pow(value - mean, 2)
+      end) / count
 
     :math.sqrt(variance)
   end

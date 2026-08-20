@@ -167,38 +167,45 @@ defmodule Chunx.Chunker.Semantic do
          avg_similarities,
          cumulative_tokens,
          total_sentences,
-         config,
+         %{
+           threshold_step: threshold_step,
+           min_chunk_size: min_chunk_size,
+           chunk_size: chunk_size
+         } = config,
          low,
          high,
          iterations \\ 0
        ) do
-    if abs(high - low) <= config.threshold_step or iterations > 10 do
+    if abs(high - low) <= threshold_step or iterations > 10 do
       (low + high) / 2
     else
       threshold = (low + high) / 2
       split_ranges = get_split_indices(avg_similarities, total_sentences, threshold, config)
 
-      token_counts =
-        Enum.map(split_ranges, fn [start_idx, end_idx] ->
+      {all_valid_size, any_oversized} =
+        Enum.reduce(split_ranges, {true, false}, fn {start_idx, end_idx},
+                                                    {all_valid, oversized} ->
           end_tokens = elem(cumulative_tokens, end_idx)
           start_tokens = elem(cumulative_tokens, start_idx)
-          end_tokens - start_tokens
-        end)
+          token_count = end_tokens - start_tokens
 
-      all_valid_size =
-        Enum.all?(token_counts, &(&1 >= config.min_chunk_size and &1 <= config.chunk_size))
+          {
+            all_valid and token_count >= min_chunk_size and token_count <= chunk_size,
+            oversized or token_count > chunk_size
+          }
+        end)
 
       cond do
         all_valid_size ->
           threshold
 
-        Enum.any?(token_counts, &(&1 > config.chunk_size)) ->
+        any_oversized ->
           find_optimal_threshold(
             avg_similarities,
             cumulative_tokens,
             total_sentences,
             config,
-            threshold + config.threshold_step,
+            threshold + threshold_step,
             high,
             iterations + 1
           )
@@ -210,7 +217,7 @@ defmodule Chunx.Chunker.Semantic do
             total_sentences,
             config,
             low,
-            threshold - config.threshold_step,
+            threshold - threshold_step,
             iterations + 1
           )
       end
@@ -246,35 +253,34 @@ defmodule Chunx.Chunker.Semantic do
     split_indices =
       get_split_indices(List.to_tuple(avg_similarities), length(sentences), threshold, config)
 
-    split_indices
-    |> Enum.map(fn [start_idx, end_idx] ->
-      Enum.slice(sentences, start_idx..(end_idx - 1))
-    end)
-    |> Enum.reject(&Enum.empty?/1)
+    {groups, []} =
+      Enum.map_reduce(split_indices, sentences, fn {start_idx, end_idx}, remaining ->
+        Enum.split(remaining, end_idx - start_idx)
+      end)
+
+    groups
   end
 
-  defp get_split_indices(avg_similarities, total_sentences, threshold, config) do
-    candidate_points =
-      0..(total_sentences - 2)
-      |> Enum.filter(fn idx -> elem(avg_similarities, idx) <= threshold end)
-      |> Enum.map(&(&1 + 1))
+  defp get_split_indices(
+         avg_similarities,
+         total_sentences,
+         threshold,
+         %{min_sentences: min_sentences}
+       ) do
+    {ranges, last_split} =
+      Enum.reduce(0..(total_sentences - 2), {[], 0}, fn index, {ranges, last_split} = acc ->
+        point = index + 1
+        enough_before? = point - last_split >= min_sentences
+        enough_after? = total_sentences - point >= min_sentences
 
-    {split_points, _last_split} =
-      Enum.reduce(candidate_points, {[], 0}, fn point, {points, last_split} = acc ->
-        enough_before? = point - last_split >= config.min_sentences
-        enough_after? = total_sentences - point >= config.min_sentences
-
-        if enough_before? and enough_after? do
-          {[point | points], point}
+        if elem(avg_similarities, index) <= threshold and enough_before? and enough_after? do
+          {[{last_split, point} | ranges], point}
         else
           acc
         end
       end)
 
-    splits = [0] ++ Enum.reverse(split_points) ++ [total_sentences]
-
-    splits
-    |> Enum.chunk_every(2, 1, :discard)
+    Enum.reverse([{last_split, total_sentences} | ranges])
   end
 
   defp split_chunks(sentence_groups, config) do
@@ -284,14 +290,17 @@ defmodule Chunx.Chunker.Semantic do
     end)
   end
 
-  defp split_group_into_chunks(group, config) do
+  defp split_group_into_chunks(
+         group,
+         %{chunk_size: chunk_size, min_sentences: min_sentences}
+       ) do
     {chunks, current_chunk, _current_tokens, _current_length} =
       group
       |> Enum.reduce({[], [], 0, 0}, fn sentence,
                                         {chunks, current_chunk, current_tokens, current_length} ->
         new_tokens = current_tokens + sentence.token_count
 
-        if new_tokens <= config.chunk_size or current_length < config.min_sentences do
+        if new_tokens <= chunk_size or current_length < min_sentences do
           {chunks, [sentence | current_chunk], new_tokens, current_length + 1}
         else
           chunk = create_chunk(Enum.reverse(current_chunk))
