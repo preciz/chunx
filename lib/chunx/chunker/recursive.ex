@@ -1,6 +1,6 @@
 defmodule Chunx.Chunker.Recursive do
   @moduledoc """
-  Implements recursive text chunking from coarse document boundaries to tokens.
+  Splits text through an ordered sequence of structural boundaries.
 
   Text is split using each configured level in order. Segments that still exceed
   `:chunk_size` are passed to the next level, while adjacent segments are merged
@@ -41,20 +41,21 @@ defmodule Chunx.Chunker.Recursive do
     :tokens
   ]
 
-  @type level :: [String.t()] | :whitespace | :tokens
+  @type level :: nonempty_list(String.t()) | :whitespace | :tokens
   @type chunk_opts :: [
           chunk_size: pos_integer(),
-          levels: [level()]
+          levels: nonempty_list(level())
         ]
 
   @default_opts [chunk_size: 512, levels: @default_levels]
 
   @doc """
-  Recursively splits text into chunks no larger than `:chunk_size` tokens.
+  Recursively splits text toward the `:chunk_size` target.
 
   ## Options
 
-    * `:chunk_size` - Maximum number of content tokens per chunk (default: 512).
+    * `:chunk_size` - Target maximum content-token count (default: 512). An
+      indivisible grapheme may exceed the target.
     * `:levels` - Ordered splitting levels. Each level is a non-empty list of
       delimiters, `:whitespace`, or `:tokens`. Token splitting is always used as
       a final fallback when custom levels are exhausted.

@@ -1,9 +1,6 @@
 defmodule Chunx.Chunker.Semantic do
   @moduledoc """
-  Implements semantic chunking using sentence embeddings.
-
-  Splits text into semantically coherent chunks using embeddings
-  while respecting token limits.
+  Splits text where adjacent sentence embeddings become less similar.
   """
 
   @behaviour Chunx.Chunker
@@ -20,7 +17,7 @@ defmodule Chunx.Chunker.Semantic do
           min_chunk_size: pos_integer(),
           threshold_step: float(),
           separator: String.t(),
-          delimiters: [String.t()],
+          delimiters: nonempty_list(String.t()),
           min_chars_per_sentence: non_neg_integer(),
           similarity_window: non_neg_integer()
         ]
@@ -34,20 +31,27 @@ defmodule Chunx.Chunker.Semantic do
   ]
 
   @doc """
-  Splits text into semantically coherent chunks using embeddings.
+  Splits text using sentence embeddings.
 
   ## Options
-    * `:chunk_size` - Maximum number of content tokens per chunk (default: 512)
-    * `:threshold` - Threshold for semantic similarity (0-1) or :auto (default: :auto)
-    * `:min_sentences` - Minimum number of sentences per chunk (default: 1)
-    * `:min_chunk_size` - Minimum number of content tokens per chunk (default: 2)
-    * `:threshold_step` - Step size for threshold calculation (default: 0.01)
-    * `:delimiters` - Sentence delimiters (default: `[".", "!", "?", "\\n"]`)
+    * `:chunk_size` - Target maximum content-token count (default: 512).
+      `:min_sentences` takes precedence over this target.
+    * `:threshold` - Split when average adjacent similarity is at or below this
+      value, or use `:auto` to select a value from the input (default: `:auto`).
+    * `:min_sentences` - Minimum sentence count considered when placing
+      boundaries (default: 1).
+    * `:min_chunk_size` - Target minimum content-token count used while choosing
+      an automatic threshold (default: 2).
+    * `:threshold_step` - Search precision for an automatic threshold
+      (default: `0.01`).
+    * `:delimiters` - Strings that end sentences (default:
+      `[".", "!", "?", "\\n"]`).
     * `:min_chars_per_sentence` - Minimum trimmed character count used when
-      grouping short sentence fragments (default: 12)
+      joining short sentence fragments (default: 12).
     * `:similarity_window` - Number of neighboring sentences included on each
-      side when generating sentence embeddings (default: 1)
-    * `:separator` - Reserved non-empty separator used by sentence preparation
+      side of each embedding input (default: 1).
+    * `:separator` - Compatibility option. It must be non-empty and otherwise
+      has no effect.
   """
   @spec chunk(
           binary(),

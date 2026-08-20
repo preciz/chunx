@@ -8,15 +8,14 @@ defmodule Chunx.EmbeddingIntegrationTest do
   @moduletag :integration
   @moduletag timeout: 600_000
 
-  @default_model "sentence-transformers/all-MiniLM-L6-v2"
+  @model "sentence-transformers/all-MiniLM-L6-v2"
 
   setup_all do
-    model = System.get_env("CHUNX_EMBEDDING_MODEL", @default_model)
-    repository = {:hf, model}
+    repository = {:hf, @model}
 
     {:ok, model_info} = Bumblebee.load_model(repository)
     {:ok, bumblebee_tokenizer} = Bumblebee.load_tokenizer(repository)
-    {:ok, chunk_tokenizer} = Tokenizers.Tokenizer.from_pretrained(model)
+    {:ok, chunk_tokenizer} = Tokenizers.Tokenizer.from_pretrained(@model)
 
     serving =
       Bumblebee.Text.text_embedding(model_info, bumblebee_tokenizer,

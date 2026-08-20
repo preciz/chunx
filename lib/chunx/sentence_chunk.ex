@@ -22,6 +22,7 @@ defmodule Chunx.SentenceChunk do
           sentences: [Chunk.t()]
         }
 
+  @doc "Creates a sentence chunk. Byte offsets use a half-open range."
   @spec new(String.t(), non_neg_integer(), non_neg_integer(), pos_integer(), [Chunk.t()]) :: t()
   def new(text, start_byte, end_byte, token_count, sentences)
       when is_binary(text) and

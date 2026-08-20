@@ -1,9 +1,6 @@
 defmodule Chunx.Chunker.Word do
   @moduledoc """
-  Implements a word-based chunking strategy.
-
-  Splits text into overlapping chunks based on words while
-  respecting token limits.
+  Splits text at word boundaries, with optional overlap.
   """
 
   @behaviour Chunx.Chunker
@@ -24,8 +21,10 @@ defmodule Chunx.Chunker.Word do
   Splits text into overlapping chunks using word boundaries.
 
   ## Options
-    * `:chunk_size` - Maximum number of content tokens per chunk (default: 512)
-    * `:chunk_overlap` - Number of content tokens (integer) or percentage (float between 0 and 1) to overlap between chunks (default: 0.25)
+    * `:chunk_size` - Target maximum content-token count (default: 512). A word
+      that exceeds the target is kept intact.
+    * `:chunk_overlap` - Overlap as a token count or a fraction in the range
+      `[0.0, 1.0)` (default: `0.25`).
 
   ## Examples
 

@@ -1,8 +1,6 @@
 defmodule Chunx.Chunker.Token do
   @moduledoc """
-  Implements a token-based chunking strategy.
-
-  Splits text into overlapping chunks based on token count using the given tokenizer.
+  Splits text at token offsets, with optional overlap.
   """
 
   @behaviour Chunx.Chunker
@@ -25,7 +23,8 @@ defmodule Chunx.Chunker.Token do
   ## Options
     * `:chunk_size` - Target maximum number of content tokens per chunk (default: 512).
       A byte-indivisible grapheme may contain more tokens and is kept intact.
-    * `:chunk_overlap` - Number of content tokens (integer) or percentage (float between 0 and 1) to overlap between chunks (default: 0.25)
+    * `:chunk_overlap` - Overlap as a token count or a fraction in the range
+      `[0.0, 1.0)` (default: `0.25`).
 
   ## Examples
 

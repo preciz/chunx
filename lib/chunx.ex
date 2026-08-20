@@ -1,12 +1,11 @@
 defmodule Chunx do
   @moduledoc """
-  Chunk text with different chunking strategies.
+  Text chunking strategies.
 
-  Available chunking strategies:
-  - `Chunx.Chunker.Token` - Splits text into overlapping chunks based on token count
-  - `Chunx.Chunker.Word` - Splits text into overlapping chunks based on word boundaries
-  - `Chunx.Chunker.Sentence` - Splits text into overlapping chunks based on sentence boundaries
-  - `Chunx.Chunker.Semantic` - Splits text into overlapping chunks based on semantic similarity
-  - `Chunx.Chunker.Recursive` - Recursively splits text using structural boundaries
+    * `Chunx.Chunker.Token` splits at token offsets.
+    * `Chunx.Chunker.Word` keeps words intact.
+    * `Chunx.Chunker.Sentence` keeps sentences intact and supports overlap.
+    * `Chunx.Chunker.Recursive` tries structural boundaries before tokens.
+    * `Chunx.Chunker.Semantic` splits where sentence similarity decreases.
   """
 end

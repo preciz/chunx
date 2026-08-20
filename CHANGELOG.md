@@ -13,43 +13,33 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 - Added `Chunx.Chunker.Recursive`, which progressively splits text at
   paragraph, sentence, punctuation, whitespace, and token boundaries.
-- Added a shared tokenizer boundary with support for native
-  `Tokenizers.Tokenizer` values and custom tokenizer adapters.
-- Added grapheme-safe handling for repeated, overlapping, and byte-level token
-  offsets.
+- Added custom tokenizer adapters through `Chunx.Tokenizer`.
 - Added an example script covering the available non-semantic chunkers.
 - Added opt-in real-model embedding integration tests, runnable with
   `mix test --include integration` or `mix test --only integration`.
-- Expanded property testing for reconstruction, offsets, overlap normalization,
-  semantic metadata, sentence grouping, tokenizer windows, Unicode, and
-  statistical invariants.
+- Added property tests for reconstruction, offsets, overlap, Unicode, tokenizer
+  windows, and semantic metadata.
 
 ### Changed
 
 - Standardized `token_count` across all chunkers to mean content tokens,
   excluding tokenizer entries without a byte span.
-- Refactored Token, Word, Sentence, Recursive, and Semantic chunking paths to
-  reduce intermediate collections and repeated traversal.
-- Optimized native token counting and ordinary token-window packing while
-  retaining the hardened Unicode fallback.
-- Simplified semantic similarity averaging without changing the adjacent
-  cosine-similarity model.
+- Made tokenizer-derived chunk boundaries grapheme-safe.
+- Reduced intermediate allocations and repeated traversal in the chunkers.
 - Updated Nx, EXLA, Bumblebee, Scholar, StreamData, and related dependencies.
 
 ### Fixed
 
 - Preserved exact byte offsets for repeated text and Unicode content.
-- Prevented SentenceChunker from stalling when overlap contains the entire
+- Prevented Sentence from stalling when overlap contains the entire
   previous chunk.
-- Preserved TokenChunker's trailing overlap window while keeping indivisible
+- Preserved Token's trailing overlap window while keeping indivisible
   graphemes intact.
-- Propagated tokenizer failures consistently instead of crashing on failed
-  encodings.
+- Propagated tokenizer failures instead of crashing on failed encodings.
 - Rejected malformed tokenizer responses and offsets with tagged errors.
-- Prevented SemanticChunker from silently dropping sentences when an embedding
+- Prevented Semantic from silently dropping sentences when an embedding
   function returns the wrong number of embeddings.
-- Corrected sentence grouping and chunk-boundary behavior to preserve all input
-  text.
+- Preserved all input text when grouping sentences and placing chunk boundaries.
 
 ## [0.1.0] - 2026-03-04
 

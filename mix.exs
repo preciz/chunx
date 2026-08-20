@@ -11,13 +11,22 @@ defmodule Chunx.MixProject do
       start_permanent: Mix.env() == :prod,
       description: description(),
       package: package(),
+      docs: docs(),
       deps: deps(),
       source_url: "https://github.com/preciz/chunx"
     ]
   end
 
   defp description do
-    "An Elixir library for splitting text into meaningful chunks using Token, Word, Sentence, Recursive, and Semantic strategies."
+    "Text chunking for Elixir with token, word, sentence, recursive, and semantic strategies."
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      extras: ["README.md", "CHANGELOG.md", "LICENSE"],
+      source_ref: "v#{@version}"
+    ]
   end
 
   defp package do

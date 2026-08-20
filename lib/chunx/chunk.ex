@@ -22,6 +22,7 @@ defmodule Chunx.Chunk do
           embedding: Nx.Tensor.t() | nil
         }
 
+  @doc "Creates a chunk. Byte offsets use a half-open range."
   @spec new(String.t(), non_neg_integer(), non_neg_integer(), pos_integer(), Nx.Tensor.t() | nil) ::
           t()
   def new(text, start_byte, end_byte, token_count, embedding \\ nil)

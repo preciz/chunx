@@ -2,29 +2,13 @@
 
 [![test](https://github.com/preciz/chunx/actions/workflows/test.yml/badge.svg)](https://github.com/preciz/chunx/actions/workflows/test.yml)
 
-Chunx is an Elixir library for splitting text into meaningful chunks using various strategies. It's particularly useful for processing large texts for LLMs, semantic search, and other NLP tasks.
-
-## Credit
-
-This library is based on [chonkie-ai/chonkie](https://github.com/chonkie-ai/chonkie)
-
-## Features
-
-- Multiple chunking strategies:
-  - Token-based chunking
-  - Word-based chunking
-  - Sentence-based chunking
-  - Semantic chunking with embeddings
-  - Recursive chunking using structural boundaries
-
-- Configurable options for each strategy
-- Support for overlapping chunks
-- Token count tracking
-- Embedding support
+Chunx splits text by tokens, words, sentences, document structure, or semantic
+similarity. It is an Elixir implementation inspired by
+[Chonkie](https://github.com/chonkie-ai/chonkie).
 
 ## Installation
 
-Add `chunx` to your list of dependencies in `mix.exs`:
+Add Chunx to `mix.exs`:
 
 ```elixir
 def deps do
@@ -36,83 +20,66 @@ end
 
 ## Usage
 
-### Token-based Chunking
+All chunkers require a tokenizer. They accept a `Tokenizers.Tokenizer` or a
+custom adapter implementing the `Chunx.Tokenizer` behaviour.
 
 ```elixir
+alias Chunx.Chunker.Token
+
 {:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")
-{:ok, chunks} = Chunx.Chunker.Token.chunk("Your text here", tokenizer, chunk_size: 512)
+{:ok, chunks} = Token.chunk("Text to split", tokenizer, chunk_size: 128)
 ```
 
-### Word-based Chunking
+Each returned chunk contains its text, half-open byte offsets into the original
+text, and its content-token count. Sentence and Semantic return
+`Chunx.SentenceChunk` structs; the other chunkers return `Chunx.Chunk` structs.
+
+### Chunkers
+
+| Module | Splitting unit | Overlap |
+| --- | --- | --- |
+| `Chunx.Chunker.Token` | Token offsets | Token count or fraction |
+| `Chunx.Chunker.Word` | Whole words | Token count or fraction |
+| `Chunx.Chunker.Sentence` | Whole sentences | Whole sentences within a token budget |
+| `Chunx.Chunker.Recursive` | Configured structural levels, then tokens | None |
+| `Chunx.Chunker.Semantic` | Sentence-embedding similarity | None |
+
+See the [API documentation](https://hexdocs.pm/chunx/) for each module's options
+and size-limit exceptions.
+
+Semantic chunking also requires a function that returns one `Nx.Tensor` for
+each input string:
 
 ```elixir
-{:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")
-{:ok, chunks} = Chunx.Chunker.Word.chunk("Your text here", tokenizer, chunk_size: 512)
+alias Chunx.Chunker.Semantic
+
+embedding_fun = &MyApp.Embeddings.embed/1
+
+{:ok, chunks} =
+  Semantic.chunk("Text to split", tokenizer, embedding_fun,
+    chunk_size: 128,
+    threshold: :auto
+  )
 ```
-
-### Sentence-based Chunking
-
-```elixir
-{:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")
-{:ok, chunks} = Chunx.Chunker.Sentence.chunk("Your text here", tokenizer)
-```
-
-### Semantic Chunking
-
-```elixir
-{:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")
-
-# The embedding function must return a list of Nx.Tensor.t()
-embedding_fn = fn texts ->
-  # Your embedding function here
-end
-
-{:ok, chunks} = Chunx.Chunker.Semantic.chunk("Your text here", tokenizer, embedding_fn)
-```
-
-### Recursive Chunking
-
-```elixir
-{:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")
-{:ok, chunks} = Chunx.Chunker.Recursive.chunk("Your text here", tokenizer)
-```
-
-Recursive chunking tries paragraphs, sentences, punctuation, whitespace, and
-finally token boundaries until every chunk fits within the configured size.
-
-## Configuration
-
-Each chunking strategy accepts various options to customize the chunking behavior:
-
-- `chunk_size`: Maximum number of content tokens per chunk
-- `chunk_overlap`: Number or proportion of content tokens shared by consecutive chunks
-- `min_sentences_per_chunk`: Minimum number of sentences per sentence-based chunk
-- `min_sentences`: Minimum number of sentences per semantic chunk
-- `threshold`: Similarity threshold for semantic chunking
-- And more...
-
-See the documentation for each chunker module for detailed configuration options.
 
 ## Testing
 
-```elixir
-# Run the test suite
+Run the regular suite:
+
+```bash
 mix test
 ```
 
-Real-model embedding integration tests are excluded by default because they
-download and run a Hugging Face model. Enable them explicitly with:
+Embedding integration tests use
+`sentence-transformers/all-MiniLM-L6-v2`. They download and run the model, so
+they are excluded by default:
 
 ```bash
-mix test --include integration
+mix test --only integration
 ```
 
-To run only the integration tests, use `mix test --only integration`.
-
-The default model is `sentence-transformers/all-MiniLM-L6-v2`. Override it with
-`CHUNX_EMBEDDING_MODEL`, provided the model is supported by Bumblebee's text
-embedding serving and `Tokenizers.Tokenizer.from_pretrained/1`.
+Use `mix test --include integration` to run both suites together.
 
 ## License
 
-[MIT License](LICENSE)
+[MIT](LICENSE)

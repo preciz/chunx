@@ -3,43 +3,29 @@ Mix.install([
 ])
 
 defmodule Demo do
+  @text """
+  Text chunking divides a document into smaller sections. A tokenizer measures
+  their size. Different chunkers preserve different boundaries.
+
+  Sentence chunking keeps sentences together. Recursive chunking first tries
+  document structure, then falls back to smaller boundaries.
+  """
+
   def run do
     {:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")
-    
-    text = """
-    The process of text chunking in RAG applications represents a delicate balance between competing requirements. On one side, we have the need for semantic coherence – ensuring that each chunk maintains meaningful context that can be understood and processed independently. On the other, we must optimize for information density, ensuring that each chunk carries sufficient signal without excessive noise that might impede retrieval accuracy. In this post, we explore the challenges of text chunking in RAG applications and propose a novel approach that leverages recent advances in transformer-based language models to achieve a more effective balance between these competing requirements.
-    
-    # Heading 1
-    This is a paragraph with some **bold text** and _italic text_.
-    
-    ## Heading 2
-    - Bullet point 1
-    - Bullet point 2 with `inline code`
-    """
 
-    IO.puts("=== Token-based Chunking ===")
-    {:ok, token_chunks} = Chunx.Chunker.Token.chunk(text, tokenizer, chunk_size: 50, chunk_overlap: 10)
-    Enum.each(Enum.with_index(token_chunks), fn {chunk, i} ->
-      IO.puts("Chunk #{i} (Tokens: #{chunk.token_count}):\n#{chunk.text}\n")
-    end)
+    show("Token", Chunx.Chunker.Token.chunk(@text, tokenizer, chunk_size: 20))
+    show("Word", Chunx.Chunker.Word.chunk(@text, tokenizer, chunk_size: 20))
+    show("Sentence", Chunx.Chunker.Sentence.chunk(@text, tokenizer, chunk_size: 20))
+    show("Recursive", Chunx.Chunker.Recursive.chunk(@text, tokenizer, chunk_size: 20))
+  end
 
-    IO.puts("\n=== Word-based Chunking ===")
-    {:ok, word_chunks} = Chunx.Chunker.Word.chunk(text, tokenizer, chunk_size: 50, chunk_overlap: 10)
-    Enum.each(Enum.with_index(word_chunks), fn {chunk, i} ->
-      IO.puts("Chunk #{i} (Tokens: #{chunk.token_count}):\n#{chunk.text}\n")
-    end)
+  defp show(name, {:ok, chunks}) do
+    IO.puts("\n#{name}")
 
-    IO.puts("\n=== Sentence-based Chunking ===")
-    {:ok, sentence_chunks} = Chunx.Chunker.Sentence.chunk(text, tokenizer, chunk_size: 50, chunk_overlap: 10)
-    Enum.each(Enum.with_index(sentence_chunks), fn {chunk, i} ->
-      IO.puts("Chunk #{i} (Tokens: #{chunk.token_count}):\n#{chunk.text}\n")
-    end)
-
-    IO.puts("\n=== Recursive Chunking ===")
-    {:ok, recursive_chunks} = Chunx.Chunker.Recursive.chunk(text, tokenizer, chunk_size: 50)
-
-    Enum.each(Enum.with_index(recursive_chunks), fn {chunk, i} ->
-      IO.puts("Chunk #{i} (Tokens: #{chunk.token_count}):\n#{chunk.text}\n")
+    Enum.each(chunks, fn chunk ->
+      IO.puts("[#{chunk.start_byte}, #{chunk.end_byte}) (#{chunk.token_count} tokens)")
+      IO.puts(chunk.text)
     end)
   end
 end

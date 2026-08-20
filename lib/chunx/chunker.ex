@@ -1,6 +1,6 @@
 defmodule Chunx.Chunker do
   @moduledoc """
-  Defines the interface for text chunking strategies.
+  Defines the shared callback types for chunkers.
   """
 
   alias Chunx.{Chunk, SentenceChunk, Tokenizer}
@@ -9,9 +9,10 @@ defmodule Chunx.Chunker do
   @type chunk_result :: {:ok, [Chunk.t()] | [SentenceChunk.t()]} | {:error, term()}
 
   @doc """
-  Splits text into chunks using the given tokenizer. Semantic chunkers receive
-  an embedding function as the third argument and may receive options as a
-  fourth argument.
+  Splits text using a tokenizer.
+
+  Semantic chunkers take an embedding function instead of options as the third
+  argument and accept options as a fourth argument.
 
   ## Parameters
     * `text` - The text to chunk

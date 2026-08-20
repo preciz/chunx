@@ -1,6 +1,6 @@
 defmodule Chunx.Tokenizer do
   @moduledoc """
-  Defines the tokenizer boundary used by Chunx chunkers.
+  Defines the tokenizer interface used by chunkers.
 
   Chunkers accept either a native `Tokenizers.Tokenizer` or an adapter tuple
   containing a module that implements this behaviour and its state:
@@ -17,9 +17,9 @@ defmodule Chunx.Tokenizer do
 
       tokenizer = {MyTokenizer, %{offsets: &token_offsets/1}}
 
-  Empty spans are treated as non-content tokens. Valid spans are normalized to
-  grapheme boundaries before chunking, so byte-level tokenizers cannot split a
-  grapheme. Adapter errors are returned unchanged by the chunkers.
+  Offsets are half-open byte ranges. Empty spans are ignored. Other spans are
+  expanded to grapheme boundaries so a chunk cannot contain part of a grapheme.
+  Adapter errors are returned unchanged.
   """
 
   @typedoc "A half-open content-token byte range."

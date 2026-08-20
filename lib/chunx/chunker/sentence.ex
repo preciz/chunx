@@ -1,9 +1,6 @@
 defmodule Chunx.Chunker.Sentence do
   @moduledoc """
-  Implements a sentence-based chunking strategy.
-
-  Splits text into overlapping chunks based on sentences while
-  respecting token limits.
+  Splits text at sentence boundaries, with optional whole-sentence overlap.
   """
 
   alias Chunx.Chunk
@@ -17,7 +14,7 @@ defmodule Chunx.Chunker.Sentence do
           chunk_size: pos_integer(),
           chunk_overlap: non_neg_integer(),
           min_sentences_per_chunk: pos_integer(),
-          delimiters: [String.t()],
+          delimiters: nonempty_list(String.t()),
           short_sentence_threshold: pos_integer()
         ]
 
@@ -33,24 +30,21 @@ defmodule Chunx.Chunker.Sentence do
   Splits text into overlapping chunks using sentence boundaries.
 
   ## Options
-    * `:chunk_size` - Maximum number of content tokens per chunk (default: 512). The chunker will try to fit
-      as many complete sentences as possible while staying under this limit. If a single sentence
-      exceeds this limit, it will still be included as its own chunk.
+    * `:chunk_size` - Target maximum content-token count (default: 512). Whole
+      sentences and `:min_sentences_per_chunk` take precedence over this target.
 
-    * `:chunk_overlap` - Number of content tokens that should overlap between consecutive chunks (default: 128).
-      This helps maintain context between chunks by including some sentences from the end of the previous
-      chunk at the start of the next chunk. Must be less than chunk_size.
+    * `:chunk_overlap` - Token budget for whole sentences repeated between
+      consecutive chunks (default: 128). Must be non-negative and less than
+      `:chunk_size`.
 
-    * `:min_sentences_per_chunk` - Minimum number of sentences that must be included in each chunk
-      (default: 1). This ensures chunks contain complete thoughts, even if including multiple sentences
-      would exceed chunk_size.
+    * `:min_sentences_per_chunk` - Minimum sentence count before applying the
+      size target (default: 1).
 
-    * `:delimiters` - List of sentence delimiters. Sentences will be split
-      at these delimiters. (default: `[".", "!", "?", "\\n"]`)
+    * `:delimiters` - Strings that end sentences (default:
+      `[".", "!", "?", "\\n"]`).
 
-    * `:short_sentence_threshold` - Below this byte size a sentence is considered too short and will be
-       concatenated with the next sentence. (default: 6)
-
+    * `:short_sentence_threshold` - Sentences shorter than this byte count are
+      joined to an adjacent sentence (default: 6).
   """
   @spec chunk(binary(), Tokenizer.t(), chunk_opts()) ::
           {:ok, [SentenceChunk.t()]} | {:error, term()}
