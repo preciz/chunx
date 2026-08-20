@@ -94,6 +94,12 @@ defmodule Chunx.Chunker.TokenTest do
       end
     end
 
+    test "rejects an overlap with an unsupported type", %{tokenizer: tokenizer} do
+      assert_raise ArgumentError, "chunk_overlap must be an integer or float", fn ->
+        Token.chunk("test", tokenizer, chunk_overlap: "one token")
+      end
+    end
+
     test "handles special tokens correctly", %{tokenizer: tokenizer} do
       # Text with characters that might trigger special tokens
       text = "[CLS] Hello [SEP] World [PAD]"

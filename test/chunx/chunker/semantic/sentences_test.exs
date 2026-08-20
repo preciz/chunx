@@ -155,6 +155,39 @@ defmodule Chunx.Chunker.Semantic.SentencesTest do
         assert chunk.text == extracted_text
       end)
     end
+
+    test "validates sentence preparation options", %{
+      tokenizer: tokenizer,
+      embedding_fun: embedding_fun
+    } do
+      assert_raise ArgumentError, "separator must be a non-empty string", fn ->
+        Sentences.prepare_sentences("Text.", tokenizer, embedding_fun, separator: "")
+      end
+
+      assert_raise ArgumentError, "delimiters must contain non-empty strings", fn ->
+        Sentences.prepare_sentences("Text.", tokenizer, embedding_fun, delimiters: [])
+      end
+
+      assert_raise ArgumentError, "delimiters must contain non-empty strings", fn ->
+        Sentences.prepare_sentences("Text.", tokenizer, embedding_fun, delimiters: [""])
+      end
+
+      assert_raise ArgumentError,
+                   "min_chars_per_sentence must be a non-negative integer",
+                   fn ->
+                     Sentences.prepare_sentences("Text.", tokenizer, embedding_fun,
+                       min_chars_per_sentence: -1
+                     )
+                   end
+
+      assert_raise ArgumentError,
+                   "similarity_window must be a non-negative integer",
+                   fn ->
+                     Sentences.prepare_sentences("Text.", tokenizer, embedding_fun,
+                       similarity_window: -1
+                     )
+                   end
+    end
   end
 
   describe "build_sentence_groups/2" do
@@ -265,6 +298,12 @@ defmodule Chunx.Chunker.Semantic.SentencesTest do
 
       assert result == ["Hello 🦛 friend.", " Next sentence."]
       assert Enum.join(result) == text
+    end
+
+    test "rejects empty delimiters" do
+      assert_raise ArgumentError, "delimiters must contain non-empty strings", fn ->
+        Sentences.split_sentences("Text.", "🦛", [], 1)
+      end
     end
 
     test "handles empty text" do

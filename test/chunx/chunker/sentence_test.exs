@@ -202,6 +202,10 @@ defmodule Chunx.Chunker.SentenceTest do
       assert_raise ArgumentError, "delimiters must contain at least one element", fn ->
         Sentence.chunk("test", tokenizer, delimiters: [])
       end
+
+      assert_raise ArgumentError, "delimiters must contain at least one element", fn ->
+        Sentence.chunk("test", tokenizer, delimiters: [""])
+      end
     end
 
     test "validates short_sentence_threshold", %{tokenizer: tokenizer} do

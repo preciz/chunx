@@ -166,8 +166,6 @@ defmodule Chunx.Chunker.Word do
     {Enum.reverse(overlap_chunk), overlap_length}
   end
 
-  defp create_chunk([], _tokenizer), do: nil
-
   defp create_chunk(words, tokenizer) do
     {{_, start_byte, _}, _} = hd(words)
     {{_, _, end_byte}, _} = List.last(words)

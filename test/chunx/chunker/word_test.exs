@@ -121,6 +121,12 @@ defmodule Chunx.Chunker.WordTest do
                    fn ->
                      Word.chunk("test", tokenizer, chunk_size: 10, chunk_overlap: -0.5)
                    end
+
+      assert_raise ArgumentError,
+                   "chunk_overlap must be an integer or float",
+                   fn ->
+                     Word.chunk("test", tokenizer, chunk_overlap: "one word")
+                   end
     end
 
     test "correctly maps chunk indices to original text", %{tokenizer: tokenizer} do
