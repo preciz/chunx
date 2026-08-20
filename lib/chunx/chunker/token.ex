@@ -7,6 +7,8 @@ defmodule Chunx.Chunker.Token do
 
   @behaviour Chunx.Chunker
 
+  alias Chunx.{Chunk, Tokenizer}
+
   @type chunk_opts :: [
           chunk_size: pos_integer(),
           chunk_overlap: non_neg_integer() | float()
@@ -21,8 +23,9 @@ defmodule Chunx.Chunker.Token do
   Splits text into overlapping chunks using the given tokenizer.
 
   ## Options
-    * `:chunk_size` - Maximum number of tokens per chunk (default: 512)
-    * `:chunk_overlap` - Number of tokens (integer) or percentage (float between 0 and 1) to overlap between chunks (default: 0.25)
+    * `:chunk_size` - Target maximum number of content tokens per chunk (default: 512).
+      A byte-indivisible grapheme may contain more tokens and is kept intact.
+    * `:chunk_overlap` - Number of content tokens (integer) or percentage (float between 0 and 1) to overlap between chunks (default: 0.25)
 
   ## Examples
 
@@ -36,7 +39,7 @@ defmodule Chunx.Chunker.Token do
         ]
       }
   """
-  @spec chunk(binary(), Tokenizers.Tokenizer.t(), chunk_opts()) ::
+  @spec chunk(binary(), Tokenizer.t(), chunk_opts()) ::
           {:ok, [Chunk.t()]} | {:error, term()}
   def chunk(text, tokenizer, opts \\ []) when is_binary(text) do
     opts = Keyword.merge(@default_opts, opts)
@@ -45,14 +48,8 @@ defmodule Chunx.Chunker.Token do
     if String.trim(text) == "" do
       {:ok, []}
     else
-      with {:ok, encoding} <- Tokenizers.Tokenizer.encode(tokenizer, text) do
-        chunks =
-          encoding
-          |> Tokenizers.Encoding.get_offsets()
-          |> reject_empty_offsets()
-          |> chunk_text(text, config)
-
-        {:ok, chunks}
+      with {:ok, offsets} <- Tokenizer.offsets(tokenizer, text) do
+        chunk_text(offsets, text, tokenizer, config)
       end
     end
   end
@@ -89,33 +86,33 @@ defmodule Chunx.Chunker.Token do
   defp normalize_overlap!(_overlap, _size),
     do: raise(ArgumentError, "chunk_overlap must be an integer or float")
 
-  defp reject_empty_offsets(offsets),
-    do: Enum.reject(offsets, fn {start_pos, end_pos} -> start_pos == end_pos end)
+  defp chunk_text([], _text, _tokenizer, _config), do: {:ok, []}
 
-  defp chunk_text([], _text, _config), do: []
+  defp chunk_text(offsets, text, tokenizer, %{chunk_size: size, chunk_overlap: overlap}) do
+    result =
+      offsets
+      |> Tokenizer.units()
+      |> Tokenizer.pack(size, overlap)
+      |> Enum.reduce_while([], fn units, chunks ->
+        case create_chunk(units, text, tokenizer) do
+          {:ok, chunk} -> {:cont, [chunk | chunks]}
+          {:error, _reason} = error -> {:halt, error}
+        end
+      end)
 
-  defp chunk_text(valid_offsets, text, %{chunk_size: size, chunk_overlap: overlap}) do
-    offsets = List.to_tuple(valid_offsets)
-    build_chunks(offsets, text, size, size - overlap, 0, tuple_size(offsets), [])
+    case result do
+      {:error, _reason} = error -> error
+      chunks -> {:ok, Enum.reverse(chunks)}
+    end
   end
 
-  defp build_chunks(_offsets, _text, _size, _step, start, total, chunks)
-       when start >= total,
-       do: Enum.reverse(chunks)
+  defp create_chunk(units, text, tokenizer) do
+    {start_offset, _, _} = hd(units)
+    {_, end_offset, _} = List.last(units)
+    chunk_text = binary_part(text, start_offset, end_offset - start_offset)
 
-  defp build_chunks(offsets, text, size, step, start, total, chunks) do
-    end_position = min(start + size, total)
-    {start_offset, _} = elem(offsets, start)
-    {_, end_offset} = elem(offsets, end_position - 1)
-
-    chunk =
-      Chunx.Chunk.new(
-        binary_part(text, start_offset, end_offset - start_offset),
-        start_offset,
-        end_offset,
-        end_position - start
-      )
-
-    build_chunks(offsets, text, size, step, start + step, total, [chunk | chunks])
+    with {:ok, token_count} <- Tokenizer.count(tokenizer, chunk_text) do
+      {:ok, Chunk.new(chunk_text, start_offset, end_offset, token_count)}
+    end
   end
 end

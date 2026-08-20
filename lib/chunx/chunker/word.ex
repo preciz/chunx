@@ -8,7 +8,7 @@ defmodule Chunx.Chunker.Word do
 
   @behaviour Chunx.Chunker
 
-  alias Chunx.Chunk
+  alias Chunx.{Chunk, Tokenizer}
 
   @type chunk_opts :: [
           chunk_size: pos_integer(),
@@ -24,8 +24,8 @@ defmodule Chunx.Chunker.Word do
   Splits text into overlapping chunks using word boundaries.
 
   ## Options
-    * `:chunk_size` - Maximum number of tokens per chunk (default: 512)
-    * `:chunk_overlap` - Number of tokens (integer) or percentage (float between 0 and 1) to overlap between chunks (default: 0.25)
+    * `:chunk_size` - Maximum number of content tokens per chunk (default: 512)
+    * `:chunk_overlap` - Number of content tokens (integer) or percentage (float between 0 and 1) to overlap between chunks (default: 0.25)
 
   ## Examples
 
@@ -39,7 +39,7 @@ defmodule Chunx.Chunker.Word do
         ]
       }
   """
-  @spec chunk(binary(), Tokenizers.Tokenizer.t(), chunk_opts()) ::
+  @spec chunk(binary(), Tokenizer.t(), chunk_opts()) ::
           {:ok, [Chunk.t()]} | {:error, term()}
   def chunk(text, tokenizer, opts \\ []) when is_binary(text) do
     opts = Keyword.merge(@default_opts, opts)
@@ -48,13 +48,13 @@ defmodule Chunx.Chunker.Word do
     if String.trim(text) == "" do
       {:ok, []}
     else
-      chunks =
-        text
-        |> split_into_words()
-        |> add_token_counts(tokenizer)
-        |> create_chunks(tokenizer, config)
-
-      {:ok, chunks}
+      text
+      |> split_into_words()
+      |> add_token_counts(tokenizer)
+      |> then(fn
+        {:ok, words} -> create_chunks(words, tokenizer, config)
+        {:error, _reason} = error -> error
+      end)
     end
   end
 
@@ -108,21 +108,33 @@ defmodule Chunx.Chunker.Word do
   end
 
   defp add_token_counts(words, tokenizer) do
-    {words, _cache} =
-      Enum.map_reduce(words, %{}, fn {word, _, _} = word_with_offsets, cache ->
-        case cache do
-          %{^word => token_count} ->
-            {{word_with_offsets, token_count}, cache}
+    result =
+      Enum.reduce_while(words, {[], %{}}, &add_token_count(&1, &2, tokenizer))
 
-          _ ->
-            {:ok, encoding} = Tokenizers.Tokenizer.encode(tokenizer, word)
-            token_count = Tokenizers.Encoding.get_length(encoding)
+    case result do
+      {:error, _reason} = error -> error
+      {words, _cache} -> {:ok, Enum.reverse(words)}
+    end
+  end
 
-            {{word_with_offsets, token_count}, Map.put(cache, word, token_count)}
-        end
-      end)
+  defp add_token_count({word, _, _} = entry, {words, cache}, tokenizer) do
+    case Map.fetch(cache, word) do
+      {:ok, token_count} ->
+        {:cont, {[{entry, token_count} | words], cache}}
 
-    words
+      :error ->
+        count_uncached_word(entry, words, cache, tokenizer)
+    end
+  end
+
+  defp count_uncached_word({word, _, _} = entry, words, cache, tokenizer) do
+    case Tokenizer.count(tokenizer, word) do
+      {:ok, token_count} ->
+        {:cont, {[{entry, token_count} | words], Map.put(cache, word, token_count)}}
+
+      {:error, _reason} = error ->
+        {:halt, error}
+    end
   end
 
   defp create_chunks(
@@ -130,30 +142,73 @@ defmodule Chunx.Chunker.Word do
          tokenizer,
          %{chunk_size: chunk_size, chunk_overlap: chunk_overlap}
        ) do
-    {chunks, current_chunk, _current_length} =
-      Enum.reduce(words, {[], [], 0}, fn {_word, token_count} = entry,
-                                         {chunks, current_chunk, current_length} ->
-        if current_length + token_count <= chunk_size or current_chunk == [] do
-          {chunks, [entry | current_chunk], current_length + token_count}
-        else
-          chunk = current_chunk |> Enum.reverse() |> create_chunk(tokenizer)
+    if Enum.all?(words, fn {_word, token_count} -> token_count == 0 end) do
+      {:ok, []}
+    else
+      do_create_chunks(words, tokenizer, chunk_size, chunk_overlap)
+    end
+  end
 
-          available_overlap = max(chunk_size - token_count, 0)
-
-          {overlap_chunk_reversed, overlap_length} =
-            calculate_overlap(current_chunk, min(chunk_overlap, available_overlap))
-
-          new_chunk = [entry | overlap_chunk_reversed]
-          new_length = overlap_length + token_count
-
-          {[chunk | chunks], new_chunk, new_length}
-        end
+  defp do_create_chunks(words, tokenizer, chunk_size, chunk_overlap) do
+    result =
+      Enum.reduce_while(words, {[], [], 0}, fn entry, state ->
+        add_word(entry, state, tokenizer, chunk_size, chunk_overlap)
       end)
 
-    final_chunk = current_chunk |> Enum.reverse() |> create_chunk(tokenizer)
+    case result do
+      {chunks, current_chunk, _current_length} ->
+        with {:ok, final_chunk} <- current_chunk |> Enum.reverse() |> create_chunk(tokenizer) do
+          {:ok, Enum.reverse([final_chunk | chunks])}
+        end
 
-    [final_chunk | chunks]
-    |> Enum.reverse()
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp add_word(
+         {_word, token_count} = entry,
+         {chunks, current_chunk, current_length},
+         tokenizer,
+         chunk_size,
+         chunk_overlap
+       ) do
+    if current_length + token_count <= chunk_size or current_chunk == [] do
+      {:cont, {chunks, [entry | current_chunk], current_length + token_count}}
+    else
+      finish_word_chunk(
+        entry,
+        token_count,
+        chunks,
+        current_chunk,
+        tokenizer,
+        chunk_size,
+        chunk_overlap
+      )
+    end
+  end
+
+  defp finish_word_chunk(
+         entry,
+         token_count,
+         chunks,
+         current_chunk,
+         tokenizer,
+         chunk_size,
+         chunk_overlap
+       ) do
+    case current_chunk |> Enum.reverse() |> create_chunk(tokenizer) do
+      {:ok, chunk} ->
+        available_overlap = max(chunk_size - token_count, 0)
+
+        {overlap, overlap_length} =
+          calculate_overlap(current_chunk, min(chunk_overlap, available_overlap))
+
+        {:cont, {[chunk | chunks], [entry | overlap], overlap_length + token_count}}
+
+      {:error, _reason} = error ->
+        {:halt, error}
+    end
   end
 
   defp calculate_overlap(current_chunk, chunk_overlap) do
@@ -174,13 +229,9 @@ defmodule Chunx.Chunker.Word do
     {{_, start_byte, _}, _} = hd(words)
     {{_, _, end_byte}, _} = List.last(words)
     chunk_text = Enum.map_join(words, fn {{word, _, _}, _} -> word end)
-    {:ok, encoding} = Tokenizers.Tokenizer.encode(tokenizer, chunk_text)
 
-    Chunk.new(
-      chunk_text,
-      start_byte,
-      end_byte,
-      Tokenizers.Encoding.get_length(encoding)
-    )
+    with {:ok, token_count} <- Tokenizer.count(tokenizer, chunk_text) do
+      {:ok, Chunk.new(chunk_text, start_byte, end_byte, token_count)}
+    end
   end
 end

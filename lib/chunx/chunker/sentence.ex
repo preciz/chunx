@@ -9,6 +9,7 @@ defmodule Chunx.Chunker.Sentence do
   alias Chunx.Chunk
   alias Chunx.Chunker.SentenceSplitter
   alias Chunx.SentenceChunk
+  alias Chunx.Tokenizer
 
   @behaviour Chunx.Chunker
 
@@ -32,11 +33,11 @@ defmodule Chunx.Chunker.Sentence do
   Splits text into overlapping chunks using sentence boundaries.
 
   ## Options
-    * `:chunk_size` - Maximum number of tokens per chunk (default: 512). The chunker will try to fit
+    * `:chunk_size` - Maximum number of content tokens per chunk (default: 512). The chunker will try to fit
       as many complete sentences as possible while staying under this limit. If a single sentence
       exceeds this limit, it will still be included as its own chunk.
 
-    * `:chunk_overlap` - Number of tokens that should overlap between consecutive chunks (default: 128).
+    * `:chunk_overlap` - Number of content tokens that should overlap between consecutive chunks (default: 128).
       This helps maintain context between chunks by including some sentences from the end of the previous
       chunk at the start of the next chunk. Must be less than chunk_size.
 
@@ -51,7 +52,7 @@ defmodule Chunx.Chunker.Sentence do
        concatenated with the next sentence. (default: 6)
 
   """
-  @spec chunk(binary(), Tokenizers.Tokenizer.t(), chunk_opts()) ::
+  @spec chunk(binary(), Tokenizer.t(), chunk_opts()) ::
           {:ok, [SentenceChunk.t()]} | {:error, term()}
   def chunk(text, tokenizer, opts \\ []) when is_binary(text) do
     opts = Keyword.merge(@default_opts, opts)
@@ -60,13 +61,16 @@ defmodule Chunx.Chunker.Sentence do
     if String.trim(text) == "" do
       {:ok, []}
     else
-      chunks =
-        text
-        |> prepare_sentences(tokenizer, config)
-        |> create_chunks(tokenizer, config)
-
-      {:ok, chunks}
+      with {:ok, sentences} <- prepare_sentences(text, tokenizer, config) do
+        create_nonempty_chunks(sentences, tokenizer, config)
+      end
     end
+  end
+
+  defp create_nonempty_chunks(sentences, tokenizer, config) do
+    if Enum.all?(sentences, &(&1.token_count == 0)),
+      do: {:ok, []},
+      else: create_chunks(sentences, tokenizer, config)
   end
 
   defp validate_config!(opts) do
@@ -150,22 +154,32 @@ defmodule Chunx.Chunker.Sentence do
   end
 
   defp convert_sentences_to_chunks(sentences, tokenizer, _config) do
-    sentences
-    |> Enum.reduce({0, []}, fn sentence, {pos, acc} ->
-      {:ok, encoding} = Tokenizers.Tokenizer.encode(tokenizer, sentence)
-      token_count = Tokenizers.Encoding.get_length(encoding)
+    result =
+      Enum.reduce_while(sentences, {0, []}, &add_sentence(&1, &2, tokenizer))
 
-      chunk = %Chunk{
-        text: sentence,
-        start_byte: pos,
-        end_byte: pos + byte_size(sentence),
-        token_count: token_count
-      }
+    case result do
+      {:error, _reason} = error -> error
+      {_end_byte, chunks} -> {:ok, Enum.reverse(chunks)}
+    end
+  end
 
-      {pos + byte_size(sentence), [chunk | acc]}
-    end)
-    |> elem(1)
-    |> Enum.reverse()
+  defp add_sentence(sentence, {pos, chunks}, tokenizer) do
+    case Tokenizer.count(tokenizer, sentence) do
+      {:ok, token_count} ->
+        end_byte = pos + byte_size(sentence)
+
+        chunk = %Chunk{
+          text: sentence,
+          start_byte: pos,
+          end_byte: end_byte,
+          token_count: token_count
+        }
+
+        {:cont, {end_byte, [chunk | chunks]}}
+
+      {:error, _reason} = error ->
+        {:halt, error}
+    end
   end
 
   defp create_chunks(sentences, tokenizer, config) do
@@ -175,24 +189,25 @@ defmodule Chunx.Chunker.Sentence do
 
   defp do_create_chunks(_sentences, total, _tokenizer, _config, sentence_chunks, pos)
        when pos >= total do
-    Enum.reverse(sentence_chunks)
+    {:ok, Enum.reverse(sentence_chunks)}
   end
 
   defp do_create_chunks(sentences, total, tokenizer, config, sentence_chunks, pos) do
     {chunk_sentences, split_idx} = split_at_chunk_boundary(sentences, total, pos, config)
 
-    case create_sentence_chunk(chunk_sentences, tokenizer) do
-      %SentenceChunk{} = sentence_chunk ->
-        next_pos = find_overlap_start(chunk_sentences, split_idx, total, config)
+    with {:ok, %SentenceChunk{} = sentence_chunk} <-
+           create_sentence_chunk(chunk_sentences, tokenizer) do
+      overlap_pos = find_overlap_start(chunk_sentences, split_idx, total, config)
+      next_pos = max(overlap_pos, pos + 1)
 
-        do_create_chunks(
-          sentences,
-          total,
-          tokenizer,
-          config,
-          [sentence_chunk | sentence_chunks],
-          next_pos
-        )
+      do_create_chunks(
+        sentences,
+        total,
+        tokenizer,
+        config,
+        [sentence_chunk | sentence_chunks],
+        next_pos
+      )
     end
   end
 
@@ -208,7 +223,9 @@ defmodule Chunx.Chunker.Sentence do
     sentence = elem(sentences, pos)
     new_tokens = tokens + sentence.token_count
 
-    if new_tokens <= config.chunk_size or count < config.min_sentences_per_chunk do
+    if tokens == 0 or
+         new_tokens <= config.chunk_size or
+         count < config.min_sentences_per_chunk do
       take_sentences(sentences, total, pos + 1, config, [sentence | acc], new_tokens, count + 1)
     else
       {Enum.reverse(acc), pos}
@@ -217,15 +234,17 @@ defmodule Chunx.Chunker.Sentence do
 
   defp create_sentence_chunk(sentences, tokenizer) do
     text = Enum.map_join(sentences, "", & &1.text)
-    {:ok, encoding} = Tokenizers.Tokenizer.encode(tokenizer, text)
 
-    %SentenceChunk{
-      text: text,
-      start_byte: hd(sentences).start_byte,
-      end_byte: List.last(sentences).end_byte,
-      token_count: Tokenizers.Encoding.get_length(encoding),
-      sentences: sentences
-    }
+    with {:ok, token_count} <- Tokenizer.count(tokenizer, text) do
+      {:ok,
+       %SentenceChunk{
+         text: text,
+         start_byte: hd(sentences).start_byte,
+         end_byte: List.last(sentences).end_byte,
+         token_count: token_count,
+         sentences: sentences
+       }}
+    end
   end
 
   defp find_overlap_start(chunk_sentences, split_idx, total_len, config) do

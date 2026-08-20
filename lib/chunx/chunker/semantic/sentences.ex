@@ -1,7 +1,7 @@
 defmodule Chunx.Chunker.Semantic.Sentences do
   @moduledoc false
 
-  alias Chunx.Chunk
+  alias Chunx.{Chunk, Tokenizer}
   alias Chunx.Chunker.SentenceSplitter
 
   @separator <<0, 1, 2, 3, 4, 5, 255, 254, 253, 252>>
@@ -14,10 +14,10 @@ defmodule Chunx.Chunker.Semantic.Sentences do
   """
   @spec prepare_sentences(
           text :: binary(),
-          tokenizer :: Tokenizers.Tokenizer.t(),
+          tokenizer :: Tokenizer.t(),
           embedding_fun :: (list(binary()) -> list(Nx.Tensor.t())),
           opts :: keyword()
-        ) :: list(Chunk.t())
+        ) :: list(Chunk.t()) | {:error, term()}
   def prepare_sentences(text, tokenizer, embedding_fun, opts \\ [])
       when is_binary(text) and is_function(embedding_fun, 1) do
     separator = Keyword.get(opts, :separator, @separator)
@@ -29,27 +29,29 @@ defmodule Chunx.Chunker.Semantic.Sentences do
 
     sentences = split_sentences(text, separator, delimiters, min_chars_per_sentence)
     sentences_with_indices = find_sentence_indices(text, sentences)
-    token_counts = get_token_counts(sentences, tokenizer)
-    sentence_groups = build_sentence_groups(sentences, similarity_window)
-    embeddings = embedding_fun.(sentence_groups)
 
-    if not is_list(embeddings) or length(embeddings) != length(sentence_groups) do
-      raise ArgumentError,
-            "embedding_fun must return one embedding for each sentence group"
+    with {:ok, token_counts} <- get_token_counts(sentences, tokenizer) do
+      sentence_groups = build_sentence_groups(sentences, similarity_window)
+      embeddings = embedding_fun.(sentence_groups)
+
+      if not is_list(embeddings) or length(embeddings) != length(sentence_groups) do
+        raise ArgumentError,
+              "embedding_fun must return one embedding for each sentence group"
+      end
+
+      sentences_with_indices
+      |> Enum.zip(token_counts)
+      |> Enum.zip(embeddings)
+      |> Enum.map(fn {{{text, start_byte, end_byte}, token_count}, embedding} ->
+        %Chunk{
+          text: text,
+          start_byte: start_byte,
+          end_byte: end_byte,
+          token_count: token_count,
+          embedding: embedding
+        }
+      end)
     end
-
-    sentences_with_indices
-    |> Enum.zip(token_counts)
-    |> Enum.zip(embeddings)
-    |> Enum.map(fn {{{text, start_byte, end_byte}, token_count}, embedding} ->
-      %Chunk{
-        text: text,
-        start_byte: start_byte,
-        end_byte: end_byte,
-        token_count: token_count,
-        embedding: embedding
-      }
-    end)
   end
 
   @spec find_sentence_indices(binary(), list(binary())) ::
@@ -104,11 +106,19 @@ defmodule Chunx.Chunker.Semantic.Sentences do
   end
 
   defp get_token_counts(sentences, tokenizer) do
-    sentences
-    |> Enum.map(fn sentence ->
-      {:ok, encoding} = Tokenizers.Tokenizer.encode(tokenizer, sentence)
-      Tokenizers.Encoding.get_length(encoding)
-    end)
+    result = Enum.reduce_while(sentences, [], &add_token_count(&1, &2, tokenizer))
+
+    case result do
+      token_counts when is_list(token_counts) -> {:ok, Enum.reverse(token_counts)}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp add_token_count(sentence, token_counts, tokenizer) do
+    case Tokenizer.count(tokenizer, sentence) do
+      {:ok, token_count} -> {:cont, [token_count | token_counts]}
+      {:error, _reason} = error -> {:halt, error}
+    end
   end
 
   @spec build_sentence_groups(list(binary()), non_neg_integer()) :: list(binary())

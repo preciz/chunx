@@ -10,6 +10,7 @@ defmodule Chunx.Chunker.Semantic do
 
   alias Chunx.Chunker.Semantic.Sentences
   alias Chunx.SentenceChunk
+  alias Chunx.Tokenizer
   alias Scholar.Metrics.Distance
 
   @type chunk_opts :: [
@@ -32,15 +33,15 @@ defmodule Chunx.Chunker.Semantic do
   Splits text into semantically coherent chunks using embeddings.
 
   ## Options
-    * `:chunk_size` - Maximum number of tokens per chunk (default: 512)
+    * `:chunk_size` - Maximum number of content tokens per chunk (default: 512)
     * `:threshold` - Threshold for semantic similarity (0-1) or :auto (default: :auto)
     * `:min_sentences` - Minimum number of sentences per chunk (default: 1)
-    * `:min_chunk_size` - Minimum number of tokens per chunk (default: 2)
+    * `:min_chunk_size` - Minimum number of content tokens per chunk (default: 2)
     * `:threshold_step` - Step size for threshold calculation (default: 0.01)
   """
   @spec chunk(
           binary(),
-          Tokenizers.Tokenizer.t(),
+          Tokenizer.t(),
           (list(String.t()) -> list(Nx.Tensor.t())),
           chunk_opts()
         ) ::
@@ -53,22 +54,28 @@ defmodule Chunx.Chunker.Semantic do
     if String.trim(text) == "" do
       {:ok, []}
     else
-      sentences =
-        Sentences.prepare_sentences(text, tokenizer, embedding_fun, opts)
+      case Sentences.prepare_sentences(text, tokenizer, embedding_fun, opts) do
+        {:error, _reason} = error ->
+          error
 
-      if length(sentences) <= config.min_sentences do
-        chunk = create_chunk(sentences)
-        {:ok, [chunk]}
-      else
-        {threshold, avg_similarities} =
-          calculate_similarity_threshold(sentences, config)
-
-        sentence_groups =
-          group_sentences(sentences, threshold, avg_similarities, config)
-
-        chunks = split_chunks(sentence_groups, config)
-        {:ok, chunks}
+        sentences ->
+          chunk_sentences(sentences, config)
       end
+    end
+  end
+
+  defp chunk_sentences(sentences, config) do
+    cond do
+      Enum.all?(sentences, &(&1.token_count == 0)) ->
+        {:ok, []}
+
+      length(sentences) <= config.min_sentences ->
+        {:ok, [create_chunk(sentences)]}
+
+      true ->
+        {threshold, avg_similarities} = calculate_similarity_threshold(sentences, config)
+        sentence_groups = group_sentences(sentences, threshold, avg_similarities, config)
+        {:ok, split_chunks(sentence_groups, config)}
     end
   end
 

@@ -3,7 +3,7 @@ defmodule Chunx.Chunker do
   Defines the interface for text chunking strategies.
   """
 
-  alias Chunx.Chunk
+  alias Chunx.{Chunk, Tokenizer}
 
   @doc """
   Splits text into chunks using the given tokenizer.
@@ -13,6 +13,6 @@ defmodule Chunx.Chunker do
     * `tokenizer` - The tokenizer to use
     * `opts` - Options specific to the chunking strategy
   """
-  @callback chunk(text :: String.t(), tokenizer :: Tokenizers.Tokenizer.t(), opts :: keyword()) ::
+  @callback chunk(text :: String.t(), tokenizer :: Tokenizer.t(), opts :: keyword()) ::
               {:ok, [Chunk.t()]} | {:error, any()}
 end

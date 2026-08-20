@@ -10,7 +10,7 @@ defmodule Chunx.Chunker.Recursive do
 
   @behaviour Chunx.Chunker
 
-  alias Chunx.Chunk
+  alias Chunx.{Chunk, Tokenizer}
   alias Chunx.Chunker.SentenceSplitter
 
   @default_levels [
@@ -68,7 +68,7 @@ defmodule Chunx.Chunker.Recursive do
       ["First paragraph." <> <<10, 10>>, "Second paragraph."]
 
   """
-  @spec chunk(binary(), Tokenizers.Tokenizer.t(), chunk_opts()) ::
+  @spec chunk(binary(), Tokenizer.t(), chunk_opts()) ::
           {:ok, [Chunk.t()]} | {:error, term()}
   def chunk(text, tokenizer, opts \\ []) when is_binary(text) do
     config = @default_opts |> Keyword.merge(opts) |> validate_config!()
@@ -76,7 +76,7 @@ defmodule Chunx.Chunker.Recursive do
     if String.trim(text) == "" do
       {:ok, []}
     else
-      {:ok, recursive_chunk(text, tokenizer, config, config.levels, 0)}
+      recursive_chunk(text, tokenizer, config, config.levels, 0)
     end
   end
 
@@ -113,17 +113,17 @@ defmodule Chunx.Chunker.Recursive do
   defp valid_level?(_level), do: false
 
   defp recursive_chunk(text, tokenizer, config, levels, start_byte) do
-    token_count = count_tokens(text, tokenizer)
+    with {:ok, token_count} <- Tokenizer.count(tokenizer, text) do
+      cond do
+        token_count == 0 ->
+          {:ok, []}
 
-    cond do
-      token_count == 0 ->
-        []
+        token_count <= config.chunk_size ->
+          {:ok, [create_chunk(text, start_byte, token_count)]}
 
-      token_count <= config.chunk_size ->
-        [create_chunk(text, start_byte, token_count)]
-
-      true ->
-        split_oversized(text, tokenizer, config, levels, start_byte)
+        true ->
+          split_oversized(text, tokenizer, config, levels, start_byte)
+      end
     end
   end
 
@@ -136,66 +136,105 @@ defmodule Chunx.Chunker.Recursive do
   end
 
   defp split_oversized(text, tokenizer, config, [level | rest], start_byte) do
-    text
-    |> split_at_level(level)
-    |> merge_splits(tokenizer, config.chunk_size)
-    |> chunks_from_splits(tokenizer, config, rest, start_byte)
+    splits = split_at_level(text, level)
+
+    with {:ok, splits} <- merge_splits(splits, tokenizer, config.chunk_size) do
+      chunks_from_splits(splits, tokenizer, config, rest, start_byte)
+    end
   end
 
   defp split_at_level(text, :whitespace), do: SentenceSplitter.split(text, [" "])
   defp split_at_level(text, delimiters), do: SentenceSplitter.split(text, delimiters)
 
   defp merge_splits(splits, tokenizer, chunk_size) do
-    {merged, current, _token_count} =
-      Enum.reduce(splits, {[], "", nil}, &merge_split(&1, &2, tokenizer, chunk_size))
+    result =
+      Enum.reduce_while(splits, {[], "", nil}, fn split, state ->
+        case merge_split(split, state, tokenizer, chunk_size) do
+          {:ok, state} -> {:cont, state}
+          {:error, _reason} = error -> {:halt, error}
+        end
+      end)
 
-    Enum.reverse([current | merged])
-  end
-
-  defp merge_split(split, {merged, "", _current_count}, _tokenizer, _chunk_size),
-    do: {merged, split, nil}
-
-  defp merge_split(split, {merged, current, current_count}, tokenizer, chunk_size) do
-    candidate = current <> split
-    current_count = current_count || count_tokens(current, tokenizer)
-
-    if current_count == 0 do
-      {merged, candidate, nil}
-    else
-      case count_tokens(candidate, tokenizer) do
-        candidate_count when candidate_count <= chunk_size ->
-          {merged, candidate, candidate_count}
-
-        _candidate_count ->
-          {[current | merged], split, nil}
-      end
+    case result do
+      {merged, current, _token_count} -> {:ok, Enum.reverse([current | merged])}
+      {:error, _reason} = error -> error
     end
   end
 
+  defp merge_split(split, {merged, "", _current_count}, _tokenizer, _chunk_size),
+    do: {:ok, {merged, split, nil}}
+
+  defp merge_split(split, {merged, current, current_count}, tokenizer, chunk_size) do
+    candidate = current <> split
+
+    with {:ok, current_count} <- current_count(current_count, current, tokenizer) do
+      merge_candidate(
+        split,
+        merged,
+        current,
+        current_count,
+        candidate,
+        tokenizer,
+        chunk_size
+      )
+    end
+  end
+
+  defp merge_candidate(_split, merged, _current, 0, candidate, _tokenizer, _chunk_size),
+    do: {:ok, {merged, candidate, nil}}
+
+  defp merge_candidate(split, merged, current, _count, candidate, tokenizer, chunk_size) do
+    with {:ok, candidate_count} <- Tokenizer.count(tokenizer, candidate) do
+      if candidate_count <= chunk_size,
+        do: {:ok, {merged, candidate, candidate_count}},
+        else: {:ok, {[current | merged], split, nil}}
+    end
+  end
+
+  defp current_count(nil, current, tokenizer), do: Tokenizer.count(tokenizer, current)
+  defp current_count(current_count, _current, _tokenizer), do: {:ok, current_count}
+
   defp chunks_from_splits(splits, tokenizer, config, rest, start_byte) do
-    {chunks, _end_byte} =
-      Enum.flat_map_reduce(splits, start_byte, fn split, offset ->
-        token_count = count_tokens(split, tokenizer)
-
-        chunks =
-          if token_count > config.chunk_size do
-            split_oversized(split, tokenizer, config, rest, offset)
-          else
-            [create_chunk(split, offset, token_count)]
-          end
-
-        {chunks, offset + byte_size(split)}
+    result =
+      Enum.reduce_while(splits, {[], start_byte}, fn split, state ->
+        add_split_chunks(split, state, tokenizer, config, rest)
       end)
 
-    chunks
+    case result do
+      {:error, _reason} = error -> error
+      {chunk_groups, _end_byte} -> {:ok, chunk_groups |> Enum.reverse() |> List.flatten()}
+    end
+  end
+
+  defp add_split_chunks(split, {chunk_groups, offset}, tokenizer, config, rest) do
+    case Tokenizer.count(tokenizer, split) do
+      {:ok, token_count} ->
+        add_counted_split(split, token_count, chunk_groups, offset, tokenizer, config, rest)
+
+      {:error, _reason} = error ->
+        {:halt, error}
+    end
+  end
+
+  defp add_counted_split(split, token_count, chunk_groups, offset, tokenizer, config, rest) do
+    result =
+      if token_count > config.chunk_size,
+        do: split_oversized(split, tokenizer, config, rest, offset),
+        else: {:ok, [create_chunk(split, offset, token_count)]}
+
+    case result do
+      {:ok, chunks} -> {:cont, {[chunks | chunk_groups], offset + byte_size(split)}}
+      {:error, _reason} = error -> {:halt, error}
+    end
   end
 
   defp split_by_tokens(text, tokenizer, chunk_size, start_byte) do
-    valid_offsets = token_offsets(text, tokenizer)
-
-    valid_offsets
-    |> Enum.chunk_every(chunk_size)
-    |> token_groups_to_chunks(text, tokenizer, start_byte)
+    with {:ok, offsets} <- Tokenizer.offsets(tokenizer, text) do
+      offsets
+      |> Tokenizer.units()
+      |> Tokenizer.pack(chunk_size, 0)
+      |> token_groups_to_chunks(text, tokenizer, start_byte)
+    end
   end
 
   defp token_groups_to_chunks(groups, text, tokenizer, start_byte) do
@@ -203,37 +242,32 @@ defmodule Chunx.Chunker.Recursive do
   end
 
   defp build_token_chunks([_group], text, tokenizer, start_byte, offset, chunks) do
-    text
-    |> add_token_chunk(tokenizer, start_byte, offset, byte_size(text), chunks)
-    |> Enum.reverse()
+    with {:ok, chunks} <-
+           add_token_chunk(text, tokenizer, start_byte, offset, byte_size(text), chunks) do
+      {:ok, Enum.reverse(chunks)}
+    end
   end
 
   defp build_token_chunks(
-         [_group, [{end_offset, _} | _] = next_group | rest],
+         [_group, [{end_offset, _, _} | _] = next_group | rest],
          text,
          tokenizer,
          start_byte,
          offset,
          chunks
        ) do
-    chunks = add_token_chunk(text, tokenizer, start_byte, offset, end_offset, chunks)
-    build_token_chunks([next_group | rest], text, tokenizer, start_byte, end_offset, chunks)
+    with {:ok, chunks} <-
+           add_token_chunk(text, tokenizer, start_byte, offset, end_offset, chunks) do
+      build_token_chunks([next_group | rest], text, tokenizer, start_byte, end_offset, chunks)
+    end
   end
 
   defp add_token_chunk(text, tokenizer, start_byte, offset, end_offset, chunks) do
     chunk_text = binary_part(text, offset, end_offset - offset)
-    chunk = create_chunk(chunk_text, start_byte + offset, count_tokens(chunk_text, tokenizer))
-    [chunk | chunks]
-  end
 
-  defp count_tokens(text, tokenizer), do: length(token_offsets(text, tokenizer))
-
-  defp token_offsets(text, tokenizer) do
-    {:ok, encoding} = Tokenizers.Tokenizer.encode(tokenizer, text)
-
-    encoding
-    |> Tokenizers.Encoding.get_offsets()
-    |> Enum.reject(fn {start_offset, end_offset} -> start_offset == end_offset end)
+    with {:ok, token_count} <- Tokenizer.count(tokenizer, chunk_text) do
+      {:ok, [create_chunk(chunk_text, start_byte + offset, token_count) | chunks]}
+    end
   end
 
   defp create_chunk(text, start_byte, token_count) do

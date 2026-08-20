@@ -6,7 +6,8 @@ defmodule Chunx.Chunk do
     * `:text` - The text content of the chunk
     * `:start_byte` - The starting index of the chunk in the original text
     * `:end_byte` - The ending index of the chunk in the original text
-    * `:token_count` - The number of tokens in the chunk
+    * `:token_count` - The number of content tokens in the chunk, excluding
+      tokenizer entries without a byte span
     * `:embedding` - The embedding vector for the chunk (optional)
   """
 

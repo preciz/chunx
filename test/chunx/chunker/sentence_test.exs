@@ -66,6 +66,26 @@ defmodule Chunx.Chunker.SentenceTest do
       end)
     end
 
+    test "always advances when the requested overlap contains the whole chunk", %{
+      tokenizer: tokenizer
+    } do
+      text = "Hi. " <> String.duplicate("long ", 30) <> "sentence."
+
+      task =
+        Task.async(fn ->
+          Sentence.chunk(text, tokenizer,
+            chunk_size: 4,
+            chunk_overlap: 3,
+            short_sentence_threshold: 1
+          )
+        end)
+
+      result = Task.yield(task, 1_000) || Task.shutdown(task, :brutal_kill)
+      assert {:ok, {:ok, chunks}} = result
+      assert length(chunks) == 2
+      assert Enum.map_join(chunks, & &1.text) == text
+    end
+
     test "ensures correct overlap token count between chunks", %{tokenizer: tokenizer} do
       desired_overlap = 10
       text = "First sentence. Second sentence. Third sentence. Fourth sentence. Fifth sentence."
