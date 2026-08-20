@@ -34,6 +34,13 @@ defmodule Demo do
     Enum.each(Enum.with_index(sentence_chunks), fn {chunk, i} ->
       IO.puts("Chunk #{i} (Tokens: #{chunk.token_count}):\n#{chunk.text}\n")
     end)
+
+    IO.puts("\n=== Recursive Chunking ===")
+    {:ok, recursive_chunks} = Chunx.Chunker.Recursive.chunk(text, tokenizer, chunk_size: 50)
+
+    Enum.each(Enum.with_index(recursive_chunks), fn {chunk, i} ->
+      IO.puts("Chunk #{i} (Tokens: #{chunk.token_count}):\n#{chunk.text}\n")
+    end)
   end
 end
 

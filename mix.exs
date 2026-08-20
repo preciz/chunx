@@ -17,7 +17,7 @@ defmodule Chunx.MixProject do
   end
 
   defp description do
-    "An Elixir library for splitting text into meaningful chunks using Token, Word, Sentence, and Semantic strategies."
+    "An Elixir library for splitting text into meaningful chunks using Token, Word, Sentence, Recursive, and Semantic strategies."
   end
 
   defp package do

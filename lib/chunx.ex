@@ -7,5 +7,6 @@ defmodule Chunx do
   - `Chunx.Chunker.Word` - Splits text into overlapping chunks based on word boundaries
   - `Chunx.Chunker.Sentence` - Splits text into overlapping chunks based on sentence boundaries
   - `Chunx.Chunker.Semantic` - Splits text into overlapping chunks based on semantic similarity
+  - `Chunx.Chunker.Recursive` - Recursively splits text using structural boundaries
   """
 end

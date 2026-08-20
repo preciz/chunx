@@ -15,6 +15,7 @@ This library is based on [chonkie-ai/chonkie](https://github.com/chonkie-ai/chon
   - Word-based chunking
   - Sentence-based chunking
   - Semantic chunking with embeddings
+  - Recursive chunking using structural boundaries
 
 - Configurable options for each strategy
 - Support for overlapping chunks
@@ -69,6 +70,16 @@ end
 {:ok, chunks} = Chunx.Chunker.Semantic.chunk("Your text here", tokenizer, embedding_fn)
 ```
 
+### Recursive Chunking
+
+```elixir
+{:ok, tokenizer} = Tokenizers.Tokenizer.from_pretrained("gpt2")
+{:ok, chunks} = Chunx.Chunker.Recursive.chunk("Your text here", tokenizer)
+```
+
+Recursive chunking tries paragraphs, sentences, punctuation, whitespace, and
+finally token boundaries until every chunk fits within the configured size.
+
 ## Configuration
 
 Each chunking strategy accepts various options to customize the chunking behavior:
@@ -91,4 +102,3 @@ mix test
 ## License
 
 [MIT License](LICENSE)
-
