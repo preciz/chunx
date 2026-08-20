@@ -28,10 +28,14 @@ defmodule Chunx.Chunker.PropertyTest do
            %{tokenizer: tokenizer} do
     check all(
             text <- string(:printable),
-            chunk_size <- integer(1..100)
+            chunk_size <- integer(1..100),
+            chunk_overlap <- integer(0..(chunk_size - 1))
           ) do
-      # Set chunk_overlap to 0 to prevent previous overlapping words from inflating the count of a single-word chunk
-      {:ok, chunks} = Word.chunk(text, tokenizer, chunk_size: chunk_size, chunk_overlap: 0)
+      {:ok, chunks} =
+        Word.chunk(text, tokenizer,
+          chunk_size: chunk_size,
+          chunk_overlap: chunk_overlap
+        )
 
       for chunk <- chunks do
         words_in_chunk = Regex.scan(~r/\s*\S+/, chunk.text)

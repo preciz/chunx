@@ -253,5 +253,39 @@ defmodule Chunx.Chunker.SemanticTest do
 
       assert length(chunks_high_threshold) >= length(chunks_low_threshold)
     end
+
+    test "preserves every sentence when enforcing a minimum group size", context do
+      %{tokenizer: tokenizer} = context
+
+      text =
+        "First sentence here. Second sentence here. Third sentence here. Fourth sentence here."
+
+      embedding_fun = fn inputs ->
+        Enum.map(inputs, fn _ -> Nx.tensor([1.0, 0.0]) end)
+      end
+
+      assert {:ok, chunks} =
+               Semantic.chunk(text, tokenizer, embedding_fun,
+                 threshold: 1.0,
+                 min_sentences: 2
+               )
+
+      assert Enum.map_join(chunks, & &1.text) == text
+      assert Enum.all?(chunks, &(length(&1.sentences) >= 2))
+    end
+
+    test "rejects a missing embedding instead of dropping a sentence", context do
+      %{tokenizer: tokenizer} = context
+
+      assert_raise ArgumentError,
+                   "embedding_fun must return one embedding for each sentence group",
+                   fn ->
+                     Semantic.chunk(
+                       "First sentence here. Second sentence here.",
+                       tokenizer,
+                       fn _inputs -> [] end
+                     )
+                   end
+    end
   end
 end

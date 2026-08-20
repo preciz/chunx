@@ -93,13 +93,18 @@ defmodule Chunx.Chunker.Semantic do
   end
 
   defp validate_positive_integers!(chunk_size, min_sentences, min_chunk_size) do
-    if chunk_size <= 0, do: raise(ArgumentError, "chunk_size must be positive")
-    if min_sentences <= 0, do: raise(ArgumentError, "min_sentences must be positive")
-    if min_chunk_size <= 0, do: raise(ArgumentError, "min_chunk_size must be positive")
+    if not is_integer(chunk_size) or chunk_size <= 0,
+      do: raise(ArgumentError, "chunk_size must be positive")
+
+    if not is_integer(min_sentences) or min_sentences <= 0,
+      do: raise(ArgumentError, "min_sentences must be positive")
+
+    if not is_integer(min_chunk_size) or min_chunk_size <= 0,
+      do: raise(ArgumentError, "min_chunk_size must be positive")
   end
 
   defp validate_threshold_step!(step) do
-    if step <= 0 or step >= 1 do
+    if not is_number(step) or step <= 0 or step >= 1 do
       raise(ArgumentError, "threshold_step must be between 0 and 1")
     end
   end
@@ -264,19 +269,27 @@ defmodule Chunx.Chunker.Semantic do
   end
 
   defp get_split_indices(avg_similarities, total_sentences, threshold, config) do
-    # avg_similarities is a Tuple for fast iteration
-    split_points =
-      0..(total_sentences - 1)
+    candidate_points =
+      0..(total_sentences - 2)
       |> Enum.filter(fn idx -> elem(avg_similarities, idx) <= threshold end)
       |> Enum.map(&(&1 + 1))
 
-    splits = [0] ++ split_points ++ [total_sentences]
+    {split_points, _last_split} =
+      Enum.reduce(candidate_points, {[], 0}, fn point, {points, last_split} = acc ->
+        enough_before? = point - last_split >= config.min_sentences
+        enough_after? = total_sentences - point >= config.min_sentences
+
+        if enough_before? and enough_after? do
+          {[point | points], point}
+        else
+          acc
+        end
+      end)
+
+    splits = [0] ++ Enum.reverse(split_points) ++ [total_sentences]
 
     splits
     |> Enum.chunk_every(2, 1, :discard)
-    |> Enum.filter(fn [start_idx, end_idx] ->
-      end_idx - start_idx >= config.min_sentences
-    end)
   end
 
   defp split_chunks(sentence_groups, config) do

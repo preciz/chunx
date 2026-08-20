@@ -150,7 +150,7 @@ defmodule Chunx.Chunker.Semantic.SentencesTest do
 
       Enum.each(sentences, fn chunk ->
         extracted_text =
-          String.slice(@complex_markdown, chunk.start_byte, chunk.end_byte - chunk.start_byte)
+          binary_part(@complex_markdown, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
         assert chunk.text == extracted_text
       end)
@@ -257,6 +257,14 @@ defmodule Chunx.Chunker.Semantic.SentencesTest do
       text = "Part 1;Part 2;Part 3"
       result = Sentences.split_sentences(text, "🦛", [";"], 1)
       assert result == ["Part 1;", "Part 2;", "Part 3"]
+    end
+
+    test "preserves content equal to the legacy separator marker" do
+      text = "Hello 🦛 friend. Next sentence."
+      result = Sentences.split_sentences(text, "🦛", ["."], 1)
+
+      assert result == ["Hello 🦛 friend.", " Next sentence."]
+      assert Enum.join(result) == text
     end
 
     test "handles empty text" do

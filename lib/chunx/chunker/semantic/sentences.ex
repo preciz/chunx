@@ -2,6 +2,7 @@ defmodule Chunx.Chunker.Semantic.Sentences do
   @moduledoc false
 
   alias Chunx.Chunk
+  alias Chunx.Chunker.SentenceSplitter
 
   @separator <<0, 1, 2, 3, 4, 5, 255, 254, 253, 252>>
   @min_chars_per_sentence 12
@@ -24,11 +25,18 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     delimiters = Keyword.get(opts, :delimiters, @delimiters)
     similarity_window = Keyword.get(opts, :similarity_window, @similarity_window)
 
+    validate_options!(separator, delimiters, min_chars_per_sentence, similarity_window)
+
     sentences = split_sentences(text, separator, delimiters, min_chars_per_sentence)
     sentences_with_indices = find_sentence_indices(text, sentences)
     token_counts = get_token_counts(sentences, tokenizer)
     sentence_groups = build_sentence_groups(sentences, similarity_window)
     embeddings = embedding_fun.(sentence_groups)
+
+    if not is_list(embeddings) or length(embeddings) != length(sentence_groups) do
+      raise ArgumentError,
+            "embedding_fun must return one embedding for each sentence group"
+    end
 
     sentences_with_indices
     |> Enum.zip(token_counts)
@@ -66,18 +74,10 @@ defmodule Chunx.Chunker.Semantic.Sentences do
   end
 
   @spec split_sentences(binary(), binary(), list(binary()), non_neg_integer()) :: list(binary())
-  def split_sentences(text, separator, delimiters, min_chars_per_sentence) do
-    text_with_sep =
-      Enum.reduce(delimiters, text, fn delimiter, acc ->
-        String.replace(acc, delimiter, delimiter <> separator)
-      end)
-
-    initial_splits =
-      text_with_sep
-      |> String.split(separator)
-      |> Enum.reject(&(&1 == ""))
-
-    combine_short_sentences(initial_splits, min_chars_per_sentence)
+  def split_sentences(text, _separator, delimiters, min_chars_per_sentence) do
+    text
+    |> SentenceSplitter.split(delimiters)
+    |> combine_short_sentences(min_chars_per_sentence)
   end
 
   @spec combine_short_sentences(list(binary()), non_neg_integer()) :: list(binary())
@@ -114,7 +114,8 @@ defmodule Chunx.Chunker.Semantic.Sentences do
   @spec build_sentence_groups(list(binary()), non_neg_integer()) :: list(binary())
   def build_sentence_groups(sentences, 0), do: sentences
 
-  def build_sentence_groups(sentences, similarity_window) when is_integer(similarity_window) do
+  def build_sentence_groups(sentences, similarity_window)
+      when is_integer(similarity_window) and similarity_window > 0 do
     len = length(sentences)
 
     sentences
@@ -125,4 +126,32 @@ defmodule Chunx.Chunker.Semantic.Sentences do
       |> Enum.join()
     end)
   end
+
+  defp validate_options!(separator, delimiters, min_chars_per_sentence, similarity_window) do
+    validate_separator!(separator)
+    validate_delimiters!(delimiters)
+    validate_non_negative_integer!(min_chars_per_sentence, "min_chars_per_sentence")
+    validate_non_negative_integer!(similarity_window, "similarity_window")
+  end
+
+  defp validate_separator!(separator) when is_binary(separator) and separator != "", do: :ok
+
+  defp validate_separator!(_separator),
+    do: raise(ArgumentError, "separator must be a non-empty string")
+
+  defp validate_delimiters!(delimiters) when is_list(delimiters) and delimiters != [] do
+    if Enum.all?(delimiters, &(is_binary(&1) and &1 != "")),
+      do: :ok,
+      else: raise(ArgumentError, "delimiters must contain non-empty strings")
+  end
+
+  defp validate_delimiters!(_delimiters),
+    do: raise(ArgumentError, "delimiters must contain non-empty strings")
+
+  defp validate_non_negative_integer!(value, _name)
+       when is_integer(value) and value >= 0,
+       do: :ok
+
+  defp validate_non_negative_integer!(_value, name),
+    do: raise(ArgumentError, "#{name} must be a non-negative integer")
 end

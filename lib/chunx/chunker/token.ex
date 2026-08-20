@@ -9,7 +9,7 @@ defmodule Chunx.Chunker.Token do
 
   @type chunk_opts :: [
           chunk_size: pos_integer(),
-          chunk_overlap: pos_integer() | float()
+          chunk_overlap: non_neg_integer() | float()
         ]
 
   @default_opts [
@@ -57,19 +57,33 @@ defmodule Chunx.Chunker.Token do
     size = Keyword.fetch!(opts, :chunk_size)
     overlap = Keyword.fetch!(opts, :chunk_overlap)
 
-    if size <= 0, do: raise(ArgumentError, "chunk_size must be positive")
-
-    if is_integer(overlap) and (overlap < 0 or overlap >= size),
-      do: raise(ArgumentError, "chunk_overlap must be less than chunk_size")
-
-    if is_float(overlap) and (overlap < 0.0 or overlap >= 1.0),
-      do: raise(ArgumentError, "chunk_overlap percentage must be less than 1")
+    validate_chunk_size!(size)
 
     %{
       chunk_size: size,
-      chunk_overlap: if(is_float(overlap), do: floor(overlap * size), else: overlap)
+      chunk_overlap: normalize_overlap!(overlap, size)
     }
   end
+
+  defp validate_chunk_size!(size) when is_integer(size) and size > 0, do: :ok
+  defp validate_chunk_size!(_size), do: raise(ArgumentError, "chunk_size must be positive")
+
+  defp normalize_overlap!(overlap, size)
+       when is_integer(overlap) and overlap >= 0 and overlap < size,
+       do: overlap
+
+  defp normalize_overlap!(overlap, _size) when is_integer(overlap),
+    do: raise(ArgumentError, "chunk_overlap must be less than chunk_size")
+
+  defp normalize_overlap!(overlap, size)
+       when is_float(overlap) and overlap >= 0.0 and overlap < 1.0,
+       do: floor(overlap * size)
+
+  defp normalize_overlap!(overlap, _size) when is_float(overlap),
+    do: raise(ArgumentError, "chunk_overlap percentage must be less than 1")
+
+  defp normalize_overlap!(_overlap, _size),
+    do: raise(ArgumentError, "chunk_overlap must be an integer or float")
 
   defp get_valid_token_positions(offsets) do
     offsets

@@ -192,6 +192,10 @@ defmodule Chunx.Chunker.SentenceTest do
       assert_raise ArgumentError, "chunk_overlap must be less than chunk_size", fn ->
         Sentence.chunk("test", tokenizer, chunk_size: 10, chunk_overlap: 10)
       end
+
+      assert_raise ArgumentError, "chunk_overlap must be less than chunk_size", fn ->
+        Sentence.chunk("test", tokenizer, chunk_overlap: -1)
+      end
     end
 
     test "validates delimiters", %{tokenizer: tokenizer} do
@@ -219,6 +223,16 @@ defmodule Chunx.Chunker.SentenceTest do
       assert Enum.all?(chunks, fn chunk ->
                chunk.token_count <= chunk_size
              end)
+    end
+
+    test "reports the tokenizer count for each complete chunk", %{tokenizer: tokenizer} do
+      text = "First sentence. Second sentence. Third sentence."
+      {:ok, chunks} = Sentence.chunk(text, tokenizer, chunk_overlap: 0)
+
+      Enum.each(chunks, fn chunk ->
+        {:ok, encoding} = Tokenizers.Tokenizer.encode(tokenizer, chunk.text)
+        assert chunk.token_count == Tokenizers.Encoding.get_length(encoding)
+      end)
     end
 
     test "handles custom delimiters", %{tokenizer: tokenizer} do

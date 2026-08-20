@@ -128,9 +128,23 @@ defmodule Chunx.Chunker.WordTest do
 
       Enum.each(chunks, fn chunk ->
         extracted_text =
-          String.slice(@sample_text, chunk.start_byte, chunk.end_byte - chunk.start_byte)
+          binary_part(@sample_text, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
         assert String.trim(chunk.text) == String.trim(extracted_text)
+      end)
+    end
+
+    test "tracks each occurrence when chunk text repeats", %{tokenizer: tokenizer} do
+      text = "same same same same same"
+
+      assert {:ok, chunks} =
+               Word.chunk(text, tokenizer, chunk_size: 2, chunk_overlap: 0)
+
+      assert Enum.map(chunks, &{&1.start_byte, &1.end_byte}) == [{0, 9}, {9, 19}, {19, 24}]
+
+      Enum.each(chunks, fn chunk ->
+        assert binary_part(text, chunk.start_byte, chunk.end_byte - chunk.start_byte) ==
+                 chunk.text
       end)
     end
 
@@ -143,7 +157,7 @@ defmodule Chunx.Chunker.WordTest do
       # Verify indices map correctly
       Enum.each(chunks, fn chunk ->
         extracted_text =
-          String.slice(@complex_markdown, chunk.start_byte, chunk.end_byte - chunk.start_byte)
+          binary_part(@complex_markdown, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
         assert String.trim(chunk.text) == String.trim(extracted_text)
       end)

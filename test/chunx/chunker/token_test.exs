@@ -129,7 +129,7 @@ defmodule Chunx.Chunker.TokenTest do
 
       Enum.each(chunks, fn chunk ->
         extracted_text =
-          String.slice(@sample_text, chunk.start_byte, chunk.end_byte - chunk.start_byte)
+          binary_part(@sample_text, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
         assert String.trim(chunk.text) == String.trim(extracted_text)
       end)
@@ -144,7 +144,7 @@ defmodule Chunx.Chunker.TokenTest do
       # Verify indices map correctly
       Enum.each(chunks, fn chunk ->
         extracted_text =
-          String.slice(@complex_markdown, chunk.start_byte, chunk.end_byte - chunk.start_byte)
+          binary_part(@complex_markdown, chunk.start_byte, chunk.end_byte - chunk.start_byte)
 
         assert String.trim(chunk.text) == String.trim(extracted_text)
       end)

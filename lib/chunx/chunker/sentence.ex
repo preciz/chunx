@@ -6,7 +6,9 @@ defmodule Chunx.Chunker.Sentence do
   respecting token limits.
   """
 
-  alias Chunx.{Chunk, SentenceChunk}
+  alias Chunx.Chunk
+  alias Chunx.Chunker.SentenceSplitter
+  alias Chunx.SentenceChunk
 
   @behaviour Chunx.Chunker
 
@@ -50,7 +52,7 @@ defmodule Chunx.Chunker.Sentence do
 
   """
   @spec chunk(binary(), Tokenizers.Tokenizer.t(), chunk_opts()) ::
-          {:ok, [Chunx.Chunk.t()]} | {:error, term()}
+          {:ok, [SentenceChunk.t()]} | {:error, term()}
   def chunk(text, tokenizer, opts \\ []) when is_binary(text) do
     opts = Keyword.merge(@default_opts, opts)
     config = validate_config!(opts)
@@ -74,18 +76,20 @@ defmodule Chunx.Chunker.Sentence do
     delimiters = Keyword.fetch!(opts, :delimiters)
     short_sentence_threshold = Keyword.fetch!(opts, :short_sentence_threshold)
 
-    if chunk_size <= 0, do: raise(ArgumentError, "chunk_size must be positive")
+    validate_positive_integer!(chunk_size, "chunk_size must be positive")
+    validate_overlap!(chunk_overlap, chunk_size)
 
-    if chunk_overlap >= chunk_size,
-      do: raise(ArgumentError, "chunk_overlap must be less than chunk_size")
+    validate_positive_integer!(
+      min_sentences,
+      "min_sentences_per_chunk must be at least 1"
+    )
 
-    if min_sentences < 1, do: raise(ArgumentError, "min_sentences_per_chunk must be at least 1")
+    validate_delimiters!(delimiters)
 
-    if Enum.empty?(delimiters),
-      do: raise(ArgumentError, "delimiters must contain at least one element")
-
-    if short_sentence_threshold < 1,
-      do: raise(ArgumentError, "short_sentence_threshold must be at least 1")
+    validate_positive_integer!(
+      short_sentence_threshold,
+      "short_sentence_threshold must be at least 1"
+    )
 
     %{
       chunk_size: chunk_size,
@@ -96,14 +100,30 @@ defmodule Chunx.Chunker.Sentence do
     }
   end
 
-  defp split_sentences(text, config) do
-    separator = <<0, 1, 2, 3, 4, 5, 255, 254, 253, 252>>
+  defp validate_positive_integer!(value, _message) when is_integer(value) and value > 0,
+    do: :ok
 
-    config.delimiters
-    |> Enum.reduce(text, fn delimiter, acc ->
-      String.replace(acc, delimiter, delimiter <> separator)
-    end)
-    |> String.split(separator, trim: true)
+  defp validate_positive_integer!(_value, message), do: raise(ArgumentError, message)
+
+  defp validate_overlap!(overlap, chunk_size)
+       when is_integer(overlap) and overlap >= 0 and overlap < chunk_size,
+       do: :ok
+
+  defp validate_overlap!(_overlap, _chunk_size),
+    do: raise(ArgumentError, "chunk_overlap must be less than chunk_size")
+
+  defp validate_delimiters!(delimiters) when is_list(delimiters) and delimiters != [] do
+    if Enum.all?(delimiters, &(is_binary(&1) and &1 != "")),
+      do: :ok,
+      else: raise(ArgumentError, "delimiters must contain at least one element")
+  end
+
+  defp validate_delimiters!(_delimiters),
+    do: raise(ArgumentError, "delimiters must contain at least one element")
+
+  defp split_sentences(text, config) do
+    text
+    |> SentenceSplitter.split(config.delimiters)
     |> combine_short_sentences([], config.short_sentence_threshold)
   end
 
@@ -159,9 +179,8 @@ defmodule Chunx.Chunker.Sentence do
 
   defp do_create_chunks(sentences, tokenizer, config, sentence_chunks, pos) do
     {chunk_sentences, split_idx} = split_at_chunk_boundary(sentences, pos, config)
-    total_tokens = Enum.sum_by(chunk_sentences, & &1.token_count)
 
-    case create_sentence_chunk(chunk_sentences, total_tokens) do
+    case create_sentence_chunk(chunk_sentences, tokenizer) do
       %SentenceChunk{} = sentence_chunk ->
         next_pos = find_overlap_start(chunk_sentences, split_idx, length(sentences), config)
 
@@ -194,12 +213,15 @@ defmodule Chunx.Chunker.Sentence do
     {chunk_sentences, pos + length(chunk_sentences)}
   end
 
-  defp create_sentence_chunk(sentences, token_count) do
+  defp create_sentence_chunk(sentences, tokenizer) do
+    text = Enum.map_join(sentences, "", & &1.text)
+    {:ok, encoding} = Tokenizers.Tokenizer.encode(tokenizer, text)
+
     %SentenceChunk{
-      text: Enum.map_join(sentences, "", & &1.text),
+      text: text,
       start_byte: hd(sentences).start_byte,
       end_byte: List.last(sentences).end_byte,
-      token_count: token_count,
+      token_count: Tokenizers.Encoding.get_length(encoding),
       sentences: sentences
     }
   end
