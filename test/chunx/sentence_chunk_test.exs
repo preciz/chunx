@@ -38,14 +38,16 @@ defmodule Chunx.SentenceChunkTest do
 
     test "raises when text is not a binary" do
       assert_raise FunctionClauseError, fn ->
-        SentenceChunk.new(:not_a_string, 0, 10, 1, [])
+        call_constructor([:not_a_string, 0, 10, 1, []])
       end
     end
 
     test "raises when sentences is not a list" do
       assert_raise FunctionClauseError, fn ->
-        SentenceChunk.new("text", 0, 10, 1, "not a list")
+        call_constructor(["text", 0, 10, 1, "not a list"])
       end
     end
   end
+
+  defp call_constructor(arguments), do: apply(SentenceChunk, :new, arguments)
 end

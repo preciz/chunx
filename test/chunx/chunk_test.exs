@@ -36,8 +36,10 @@ defmodule Chunx.ChunkTest do
 
     test "raises when text is not a binary" do
       assert_raise FunctionClauseError, fn ->
-        Chunk.new(:not_a_string, 0, 10, 1)
+        call_constructor([:not_a_string, 0, 10, 1])
       end
     end
   end
+
+  defp call_constructor(arguments), do: apply(Chunk, :new, arguments)
 end
