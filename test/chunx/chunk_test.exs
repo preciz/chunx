@@ -24,11 +24,11 @@ defmodule Chunx.ChunkTest do
       end
     end
 
-    test "raises when token_count is zero or negative" do
-      assert_raise FunctionClauseError, fn ->
-        Chunk.new("text", 0, 10, 0)
-      end
+    test "accepts zero token_count for tokenizer-ignored text" do
+      assert %Chunk{token_count: 0} = Chunk.new(<<0>>, 0, 1, 0)
+    end
 
+    test "raises when token_count is negative" do
       assert_raise FunctionClauseError, fn ->
         Chunk.new("text", 0, 10, -1)
       end
@@ -37,6 +37,12 @@ defmodule Chunx.ChunkTest do
     test "raises when text is not a binary" do
       assert_raise FunctionClauseError, fn ->
         call_constructor([:not_a_string, 0, 10, 1])
+      end
+    end
+
+    test "raises a clear error when text is not valid UTF-8" do
+      assert_raise ArgumentError, "text must be valid UTF-8", fn ->
+        Chunk.new(<<255>>, 0, 1, 1)
       end
     end
   end

@@ -3,7 +3,7 @@ defmodule Chunx.Chunker.Sentence do
   Splits text at sentence boundaries, with optional whole-sentence overlap.
   """
 
-  alias Chunx.Chunk
+  alias Chunx.{Chunk, Helper}
   alias Chunx.Chunker.SentenceSplitter
   alias Chunx.SentenceChunk
   alias Chunx.Tokenizer
@@ -46,18 +46,22 @@ defmodule Chunx.Chunker.Sentence do
     * `:short_sentence_threshold` - Sentences shorter than this byte count are
       joined to an adjacent sentence (default: 6).
   """
-  @spec chunk(binary(), Tokenizer.t(), chunk_opts()) ::
+  @spec chunk(String.t(), Tokenizer.t(), chunk_opts()) ::
           {:ok, [SentenceChunk.t()]} | {:error, term()}
   def chunk(text, tokenizer, opts \\ []) when is_binary(text) do
     opts = Keyword.merge(@default_opts, opts)
     config = validate_config!(opts)
 
-    if String.trim(text) == "" do
-      {:ok, []}
-    else
-      with {:ok, sentences} <- prepare_sentences(text, tokenizer, config) do
-        create_nonempty_chunks(sentences, tokenizer, config)
-      end
+    with :ok <- Helper.validate_text(text), do: chunk_valid_text(text, tokenizer, config)
+  end
+
+  defp chunk_valid_text(text, tokenizer, config) do
+    if String.trim(text) == "", do: {:ok, []}, else: chunk_nonempty_text(text, tokenizer, config)
+  end
+
+  defp chunk_nonempty_text(text, tokenizer, config) do
+    with {:ok, sentences} <- prepare_sentences(text, tokenizer, config) do
+      create_nonempty_chunks(sentences, tokenizer, config)
     end
   end
 
@@ -111,7 +115,7 @@ defmodule Chunx.Chunker.Sentence do
     do: raise(ArgumentError, "chunk_overlap must be less than chunk_size")
 
   defp validate_delimiters!(delimiters) when is_list(delimiters) and delimiters != [] do
-    if Enum.all?(delimiters, &(is_binary(&1) and &1 != "")),
+    if Enum.all?(delimiters, &(is_binary(&1) and &1 != "" and String.valid?(&1))),
       do: :ok,
       else: raise(ArgumentError, "delimiters must contain non-empty strings")
   end

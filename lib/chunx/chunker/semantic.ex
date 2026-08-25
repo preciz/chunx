@@ -6,6 +6,7 @@ defmodule Chunx.Chunker.Semantic do
   @behaviour Chunx.Chunker
 
   alias Chunx.Chunker.Semantic.Sentences
+  alias Chunx.Helper
   alias Chunx.SentenceChunk
   alias Chunx.Tokenizer
   alias Scholar.Metrics.Distance
@@ -51,7 +52,7 @@ defmodule Chunx.Chunker.Semantic do
       side of each embedding input (default: 1).
   """
   @spec chunk(
-          binary(),
+          String.t(),
           Tokenizer.t(),
           Chunx.Chunker.embedding_fun(),
           chunk_opts()
@@ -62,16 +63,22 @@ defmodule Chunx.Chunker.Semantic do
     opts = Keyword.merge(@default_opts, opts)
     config = validate_config!(opts)
 
+    with :ok <- Helper.validate_text(text),
+         do: chunk_valid_text(text, tokenizer, embedding_fun, opts, config)
+  end
+
+  defp chunk_valid_text(text, tokenizer, embedding_fun, opts, config) do
     if String.trim(text) == "" do
       {:ok, []}
     else
-      case Sentences.prepare_sentences(text, tokenizer, embedding_fun, opts) do
-        {:error, _reason} = error ->
-          error
+      chunk_nonempty_text(text, tokenizer, embedding_fun, opts, config)
+    end
+  end
 
-        sentences ->
-          chunk_sentences(sentences, config)
-      end
+  defp chunk_nonempty_text(text, tokenizer, embedding_fun, opts, config) do
+    case Sentences.prepare_sentences(text, tokenizer, embedding_fun, opts) do
+      {:error, _reason} = error -> error
+      sentences -> chunk_sentences(sentences, config)
     end
   end
 

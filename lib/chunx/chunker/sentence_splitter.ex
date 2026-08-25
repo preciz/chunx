@@ -1,12 +1,14 @@
 defmodule Chunx.Chunker.SentenceSplitter do
   @moduledoc false
 
-  @spec split(binary(), [binary()]) :: [binary()]
+  @spec split(String.t(), [String.t()]) :: [String.t()]
   def split(text, delimiters) when is_binary(text) and is_list(delimiters) do
     if Enum.empty?(delimiters) or
-         not Enum.all?(delimiters, &(is_binary(&1) and &1 != "")) do
+         not Enum.all?(delimiters, &(is_binary(&1) and &1 != "" and String.valid?(&1))) do
       raise ArgumentError, "delimiters must contain non-empty strings"
     end
+
+    if not String.valid?(text), do: raise(ArgumentError, "text must be valid UTF-8")
 
     if text == "", do: [], else: do_split(text, delimiters, 0, [])
   end

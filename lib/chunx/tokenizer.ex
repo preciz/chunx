@@ -19,7 +19,8 @@ defmodule Chunx.Tokenizer do
 
   Offsets are half-open byte ranges. Empty spans are ignored. Other spans are
   expanded to grapheme boundaries so a chunk cannot contain part of a grapheme.
-  Adapter errors are returned unchanged.
+  Adapter errors are returned unchanged. Invalid UTF-8 text is returned as
+  `{:error, {:invalid_text, :invalid_utf8}}` before the adapter is called.
   """
 
   @typedoc "A half-open content-token byte range."
@@ -34,15 +35,16 @@ defmodule Chunx.Tokenizer do
   @doc """
   Adapter callback returning half-open byte offsets for `text`.
   """
-  @callback offsets(state :: term(), text :: binary()) ::
+  @callback offsets(state :: term(), text :: String.t()) ::
               {:ok, [offset()]} | {:error, term()}
 
   @doc """
   Returns validated content-token offsets normalized to grapheme boundaries.
   """
-  @spec offsets(t(), binary()) :: {:ok, [offset()]} | {:error, term()}
+  @spec offsets(t(), String.t()) :: {:ok, [offset()]} | {:error, term()}
   def offsets(%Tokenizers.Tokenizer{} = tokenizer, text) do
-    with {:ok, encoding} <- Tokenizers.Tokenizer.encode(tokenizer, text) do
+    with :ok <- Chunx.Helper.validate_text(text),
+         {:ok, encoding} <- Tokenizers.Tokenizer.encode(tokenizer, text) do
       encoding
       |> Tokenizers.Encoding.get_offsets()
       |> content_offsets(text)
@@ -50,17 +52,20 @@ defmodule Chunx.Tokenizer do
   end
 
   def offsets({module, state}, text) when is_atom(module) do
-    case module.offsets(state, text) do
-      {:ok, offsets} -> content_offsets(offsets, text)
-      {:error, _reason} = error -> error
-      response -> {:error, {:invalid_tokenizer_response, response}}
+    with :ok <- Chunx.Helper.validate_text(text) do
+      case module.offsets(state, text) do
+        {:ok, offsets} -> content_offsets(offsets, text)
+        {:error, _reason} = error -> error
+        response -> {:error, {:invalid_tokenizer_response, response}}
+      end
     end
   end
 
   @doc "Returns the number of content tokens in `text`."
-  @spec count(t(), binary()) :: {:ok, non_neg_integer()} | {:error, term()}
+  @spec count(t(), String.t()) :: {:ok, non_neg_integer()} | {:error, term()}
   def count(%Tokenizers.Tokenizer{} = tokenizer, text) do
-    with {:ok, encoding} <- Tokenizers.Tokenizer.encode(tokenizer, text) do
+    with :ok <- Chunx.Helper.validate_text(text),
+         {:ok, encoding} <- Tokenizers.Tokenizer.encode(tokenizer, text) do
       count =
         encoding
         |> Tokenizers.Encoding.get_offsets()

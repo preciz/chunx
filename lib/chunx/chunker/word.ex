@@ -5,7 +5,7 @@ defmodule Chunx.Chunker.Word do
 
   @behaviour Chunx.Chunker
 
-  alias Chunx.{Chunk, Tokenizer}
+  alias Chunx.{Chunk, Helper, Tokenizer}
 
   @type chunk_opts :: [
           chunk_size: pos_integer(),
@@ -38,23 +38,27 @@ defmodule Chunx.Chunker.Word do
         ]
       }
   """
-  @spec chunk(binary(), Tokenizer.t(), chunk_opts()) ::
+  @spec chunk(String.t(), Tokenizer.t(), chunk_opts()) ::
           {:ok, [Chunk.t()]} | {:error, term()}
   def chunk(text, tokenizer, opts \\ []) when is_binary(text) do
     opts = Keyword.merge(@default_opts, opts)
     config = validate_config!(opts)
 
-    if String.trim(text) == "" do
-      {:ok, []}
-    else
-      text
-      |> split_into_words()
-      |> add_token_counts(tokenizer)
-      |> then(fn
-        {:ok, words} -> create_chunks(words, tokenizer, config)
-        {:error, _reason} = error -> error
-      end)
-    end
+    with :ok <- Helper.validate_text(text), do: chunk_valid_text(text, tokenizer, config)
+  end
+
+  defp chunk_valid_text(text, tokenizer, config) do
+    if String.trim(text) == "", do: {:ok, []}, else: chunk_nonempty_text(text, tokenizer, config)
+  end
+
+  defp chunk_nonempty_text(text, tokenizer, config) do
+    text
+    |> split_into_words()
+    |> add_token_counts(tokenizer)
+    |> then(fn
+      {:ok, words} -> create_chunks(words, tokenizer, config)
+      {:error, _reason} = error -> error
+    end)
   end
 
   defp validate_config!(opts) do

@@ -23,19 +23,28 @@ defmodule Chunx.Chunk do
         }
 
   @doc "Creates a chunk. Byte offsets use a half-open range."
-  @spec new(String.t(), non_neg_integer(), non_neg_integer(), pos_integer(), Nx.Tensor.t() | nil) ::
-          t()
+  @spec new(
+          String.t(),
+          non_neg_integer(),
+          non_neg_integer(),
+          non_neg_integer(),
+          Nx.Tensor.t() | nil
+        ) :: t()
   def new(text, start_byte, end_byte, token_count, embedding \\ nil)
       when is_binary(text) and
              is_integer(start_byte) and start_byte >= 0 and
              is_integer(end_byte) and end_byte >= start_byte and
-             is_integer(token_count) and token_count > 0 do
-    %__MODULE__{
-      text: text,
-      start_byte: start_byte,
-      end_byte: end_byte,
-      token_count: token_count,
-      embedding: embedding
-    }
+             is_integer(token_count) and token_count >= 0 do
+    if String.valid?(text) do
+      %__MODULE__{
+        text: text,
+        start_byte: start_byte,
+        end_byte: end_byte,
+        token_count: token_count,
+        embedding: embedding
+      }
+    else
+      raise ArgumentError, "text must be valid UTF-8"
+    end
   end
 end

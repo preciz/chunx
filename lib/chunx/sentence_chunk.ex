@@ -30,12 +30,16 @@ defmodule Chunx.SentenceChunk do
              is_integer(end_byte) and end_byte >= start_byte and
              is_integer(token_count) and token_count > 0 and
              is_list(sentences) do
-    %__MODULE__{
-      text: text,
-      start_byte: start_byte,
-      end_byte: end_byte,
-      token_count: token_count,
-      sentences: sentences
-    }
+    if String.valid?(text) do
+      %__MODULE__{
+        text: text,
+        start_byte: start_byte,
+        end_byte: end_byte,
+        token_count: token_count,
+        sentences: sentences
+      }
+    else
+      raise ArgumentError, "text must be valid UTF-8"
+    end
   end
 end

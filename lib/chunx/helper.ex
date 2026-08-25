@@ -1,6 +1,11 @@
 defmodule Chunx.Helper do
   @moduledoc false
 
+  @spec validate_text(binary()) :: :ok | {:error, {:invalid_text, :invalid_utf8}}
+  def validate_text(text) when is_binary(text) do
+    if String.valid?(text), do: :ok, else: {:error, {:invalid_text, :invalid_utf8}}
+  end
+
   @spec median(nonempty_list(number())) :: number()
   def median(values) do
     sorted = Enum.sort(values)

@@ -1,7 +1,7 @@
 defmodule Chunx.Chunker.Semantic.Sentences do
   @moduledoc false
 
-  alias Chunx.{Chunk, Tokenizer}
+  alias Chunx.{Chunk, Helper, Tokenizer}
   alias Chunx.Chunker.SentenceSplitter
 
   @min_chars_per_sentence 12
@@ -9,9 +9,9 @@ defmodule Chunx.Chunker.Semantic.Sentences do
   @similarity_window 1
 
   @spec prepare_sentences(
-          text :: binary(),
+          text :: String.t(),
           tokenizer :: Tokenizer.t(),
-          embedding_fun :: ([binary()] -> [Nx.Tensor.t()]),
+          embedding_fun :: ([String.t()] -> [Nx.Tensor.t()]),
           opts :: keyword()
         ) :: [Chunk.t()] | {:error, term()}
   def prepare_sentences(text, tokenizer, embedding_fun, opts \\ [])
@@ -22,9 +22,27 @@ defmodule Chunx.Chunker.Semantic.Sentences do
 
     validate_options!(delimiters, min_chars_per_sentence, similarity_window)
 
-    sentences = split_sentences(text, delimiters, min_chars_per_sentence)
-    sentences_with_indices = find_sentence_indices(text, sentences)
+    with :ok <- Helper.validate_text(text) do
+      sentences = split_sentences(text, delimiters, min_chars_per_sentence)
+      sentences_with_indices = find_sentence_indices(text, sentences)
 
+      prepare_sentence_chunks(
+        sentences,
+        sentences_with_indices,
+        tokenizer,
+        embedding_fun,
+        similarity_window
+      )
+    end
+  end
+
+  defp prepare_sentence_chunks(
+         sentences,
+         sentences_with_indices,
+         tokenizer,
+         embedding_fun,
+         similarity_window
+       ) do
     with {:ok, token_counts} <- get_token_counts(sentences, tokenizer) do
       sentence_groups = build_sentence_groups(sentences, similarity_window)
       embeddings = embedding_fun.(sentence_groups)
@@ -49,8 +67,8 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     end
   end
 
-  @spec find_sentence_indices(binary(), [binary()]) ::
-          [{binary(), non_neg_integer(), non_neg_integer()}]
+  @spec find_sentence_indices(String.t(), [String.t()]) ::
+          [{String.t(), non_neg_integer(), non_neg_integer()}]
   def find_sentence_indices(text, sentences) do
     {sentences_with_indices, _} =
       Enum.reduce(sentences, {[], 0}, fn sentence, {acc, current_idx} ->
@@ -70,14 +88,14 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     Enum.reverse(sentences_with_indices)
   end
 
-  @spec split_sentences(binary(), [binary()], non_neg_integer()) :: [binary()]
+  @spec split_sentences(String.t(), [String.t()], non_neg_integer()) :: [String.t()]
   def split_sentences(text, delimiters, min_chars_per_sentence) do
     text
     |> SentenceSplitter.split(delimiters)
     |> combine_short_sentences(min_chars_per_sentence)
   end
 
-  @spec combine_short_sentences([binary()], non_neg_integer()) :: [binary()]
+  @spec combine_short_sentences([String.t()], non_neg_integer()) :: [String.t()]
   def combine_short_sentences(splits, min_chars) do
     {sentences, current} =
       Enum.reduce(splits, {[], ""}, fn split, {sentences, current} ->
@@ -116,7 +134,7 @@ defmodule Chunx.Chunker.Semantic.Sentences do
     end
   end
 
-  @spec build_sentence_groups([binary()], non_neg_integer()) :: [binary()]
+  @spec build_sentence_groups([String.t()], non_neg_integer()) :: [String.t()]
   def build_sentence_groups(sentences, 0), do: sentences
 
   def build_sentence_groups([], similarity_window)
@@ -142,7 +160,7 @@ defmodule Chunx.Chunker.Semantic.Sentences do
   end
 
   defp validate_delimiters!(delimiters) when is_list(delimiters) and delimiters != [] do
-    if Enum.all?(delimiters, &(is_binary(&1) and &1 != "")),
+    if Enum.all?(delimiters, &(is_binary(&1) and &1 != "" and String.valid?(&1))),
       do: :ok,
       else: raise(ArgumentError, "delimiters must contain non-empty strings")
   end

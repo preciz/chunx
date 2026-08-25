@@ -1,6 +1,9 @@
 defmodule Chunx.Chunker do
   @moduledoc """
   Defines the shared callback types for chunkers.
+
+  Chunker input must be valid UTF-8. Invalid text is returned as
+  `{:error, {:invalid_text, :invalid_utf8}}` before tokenization begins.
   """
 
   alias Chunx.{Chunk, SentenceChunk, Tokenizer}

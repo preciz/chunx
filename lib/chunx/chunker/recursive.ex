@@ -10,7 +10,7 @@ defmodule Chunx.Chunker.Recursive do
 
   @behaviour Chunx.Chunker
 
-  alias Chunx.{Chunk, Tokenizer}
+  alias Chunx.{Chunk, Helper, Tokenizer}
   alias Chunx.Chunker.SentenceSplitter
 
   @default_levels [
@@ -69,11 +69,15 @@ defmodule Chunx.Chunker.Recursive do
       ["First paragraph." <> <<10, 10>>, "Second paragraph."]
 
   """
-  @spec chunk(binary(), Tokenizer.t(), chunk_opts()) ::
+  @spec chunk(String.t(), Tokenizer.t(), chunk_opts()) ::
           {:ok, [Chunk.t()]} | {:error, term()}
   def chunk(text, tokenizer, opts \\ []) when is_binary(text) do
     config = @default_opts |> Keyword.merge(opts) |> validate_config!()
 
+    with :ok <- Helper.validate_text(text), do: chunk_valid_text(text, tokenizer, config)
+  end
+
+  defp chunk_valid_text(text, tokenizer, config) do
     if String.trim(text) == "" do
       {:ok, []}
     else
@@ -109,7 +113,7 @@ defmodule Chunx.Chunker.Recursive do
   defp valid_level?(:tokens), do: true
 
   defp valid_level?(delimiters) when is_list(delimiters) and delimiters != [],
-    do: Enum.all?(delimiters, &(is_binary(&1) and &1 != ""))
+    do: Enum.all?(delimiters, &(is_binary(&1) and &1 != "" and String.valid?(&1)))
 
   defp valid_level?(_level), do: false
 

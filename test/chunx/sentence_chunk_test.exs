@@ -42,6 +42,12 @@ defmodule Chunx.SentenceChunkTest do
       end
     end
 
+    test "raises a clear error when text is not valid UTF-8" do
+      assert_raise ArgumentError, "text must be valid UTF-8", fn ->
+        SentenceChunk.new(<<255>>, 0, 1, 1, [])
+      end
+    end
+
     test "raises when sentences is not a list" do
       assert_raise FunctionClauseError, fn ->
         call_constructor(["text", 0, 10, 1, "not a list"])

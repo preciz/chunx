@@ -5,7 +5,7 @@ defmodule Chunx.Chunker.Token do
 
   @behaviour Chunx.Chunker
 
-  alias Chunx.{Chunk, Tokenizer}
+  alias Chunx.{Chunk, Helper, Tokenizer}
 
   @type chunk_opts :: [
           chunk_size: pos_integer(),
@@ -38,18 +38,22 @@ defmodule Chunx.Chunker.Token do
         ]
       }
   """
-  @spec chunk(binary(), Tokenizer.t(), chunk_opts()) ::
+  @spec chunk(String.t(), Tokenizer.t(), chunk_opts()) ::
           {:ok, [Chunk.t()]} | {:error, term()}
   def chunk(text, tokenizer, opts \\ []) when is_binary(text) do
     opts = Keyword.merge(@default_opts, opts)
     config = validate_config!(opts)
 
-    if String.trim(text) == "" do
-      {:ok, []}
-    else
-      with {:ok, offsets} <- Tokenizer.offsets(tokenizer, text) do
-        chunk_text(offsets, text, tokenizer, config)
-      end
+    with :ok <- Helper.validate_text(text), do: chunk_valid_text(text, tokenizer, config)
+  end
+
+  defp chunk_valid_text(text, tokenizer, config) do
+    if String.trim(text) == "", do: {:ok, []}, else: chunk_nonempty_text(text, tokenizer, config)
+  end
+
+  defp chunk_nonempty_text(text, tokenizer, config) do
+    with {:ok, offsets} <- Tokenizer.offsets(tokenizer, text) do
+      chunk_text(offsets, text, tokenizer, config)
     end
   end
 

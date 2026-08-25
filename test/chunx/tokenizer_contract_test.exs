@@ -67,6 +67,47 @@ defmodule Chunx.TokenizerContractTest do
              Sentences.prepare_sentences("Text.", tokenizer, embedding_fun)
   end
 
+  test "all text entry points reject invalid UTF-8 before doing downstream work" do
+    text = <<255>>
+    tokenizer = {Chunx.FailingTokenizer, :tokenizer_must_not_run}
+    embedding_fun = fn _groups -> flunk("embedding must not run for invalid text") end
+    error = {:error, {:invalid_text, :invalid_utf8}}
+
+    assert Token.chunk(text, tokenizer) == error
+    assert Word.chunk(text, tokenizer) == error
+    assert Sentence.chunk(text, tokenizer) == error
+    assert Recursive.chunk(text, tokenizer) == error
+    assert Semantic.chunk(text, tokenizer, embedding_fun) == error
+    assert Sentences.prepare_sentences(text, tokenizer, embedding_fun) == error
+    assert TokenizerBoundary.offsets(tokenizer, text) == error
+    assert TokenizerBoundary.count(tokenizer, text) == error
+  end
+
+  test "rejects invalid UTF-8 delimiters" do
+    invalid_delimiter = <<255>>
+
+    assert_raise ArgumentError, "delimiters must contain non-empty strings", fn ->
+      Sentence.chunk("Text.", {Chunx.FailingTokenizer, :unused}, delimiters: [invalid_delimiter])
+    end
+
+    assert_raise ArgumentError,
+                 "levels must contain delimiter lists, :whitespace, or :tokens",
+                 fn ->
+                   Recursive.chunk("Text.", {Chunx.FailingTokenizer, :unused},
+                     levels: [[invalid_delimiter]]
+                   )
+                 end
+
+    assert_raise ArgumentError, "delimiters must contain non-empty strings", fn ->
+      Sentences.prepare_sentences(
+        "Text.",
+        {Chunx.FailingTokenizer, :unused},
+        fn _ -> [] end,
+        delimiters: [invalid_delimiter]
+      )
+    end
+  end
+
   test "invalid tokenizer responses and offsets become tagged errors" do
     assert {:error, {:invalid_tokenizer_response, :unexpected}} =
              Token.chunk("Text.", {Chunx.MalformedTokenizer, :response})
