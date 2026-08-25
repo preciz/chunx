@@ -13,7 +13,7 @@ Add Chunx to `mix.exs`:
 ```elixir
 def deps do
   [
-    {:chunx, "~> 0.2.0"}
+    {:chunx, "~> 0.2.1"}
   ]
 end
 ```
@@ -63,7 +63,7 @@ embedding_fun = &MyApp.Embeddings.embed/1
 ```
 
 The repository also includes a
-[non-semantic example](https://github.com/preciz/chunx/blob/v0.2.0/examples/demo.exs).
+[non-semantic example](https://github.com/preciz/chunx/blob/v0.2.1/examples/demo.exs).
 
 ## Testing
 

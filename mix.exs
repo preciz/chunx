@@ -1,7 +1,7 @@
 defmodule Chunx.MixProject do
   use Mix.Project
 
-  @version "0.2.0"
+  @version "0.2.1"
 
   def project do
     [
@@ -12,7 +12,8 @@ defmodule Chunx.MixProject do
       package: package(),
       docs: docs(),
       deps: deps(),
-      source_url: "https://github.com/preciz/chunx"
+      source_url: "https://github.com/preciz/chunx",
+      test_coverage: [summary: [threshold: 100]]
     ]
   end
 

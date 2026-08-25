@@ -7,9 +7,25 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-25
+
+### Changed
+
+- Standardized public text contracts on valid UTF-8 `String.t()` values.
+- Allowed `Chunx.Chunk.new/5` to represent tokenizer-ignored text with a zero
+  token count.
+
 ### Removed
 
 - Removed the no-op Semantic `:separator` option.
+
+### Fixed
+
+- Rejected invalid UTF-8 text with a tagged error before tokenization,
+  splitting, or embedding.
+- Rejected invalid UTF-8 sentence and recursive delimiters.
+- Raised clear argument errors when chunk constructors receive invalid UTF-8
+  text.
 
 ## [0.2.0] - 2026-08-21
 
@@ -57,6 +73,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   `Chunx.SentenceChunk`.
 - Added caller-provided Nx embedding support for semantic chunking.
 
-[Unreleased]: https://github.com/preciz/chunx/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/preciz/chunx/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/preciz/chunx/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/preciz/chunx/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/preciz/chunx/tree/v0.1.0

@@ -11,6 +11,14 @@ defmodule Chunx.MalformedTokenizer do
   @impl true
   def offsets(:response, _text), do: :unexpected
   def offsets(:offset, _text), do: {:ok, [{-1, 1}]}
+  def offsets(:offsets, _text), do: {:ok, :not_a_list}
+end
+
+defmodule Chunx.FunctionTokenizer do
+  @behaviour Chunx.Tokenizer
+
+  @impl true
+  def offsets(function, text), do: function.(text)
 end
 
 defmodule Chunx.TokenizerContractTest do
@@ -114,11 +122,86 @@ defmodule Chunx.TokenizerContractTest do
 
     assert {:error, {:invalid_tokenizer_offset, {-1, 1}}} =
              Token.chunk("Text.", {Chunx.MalformedTokenizer, :offset})
+
+    assert {:error, {:invalid_tokenizer_offsets, :not_a_list}} =
+             Token.chunk("Text.", {Chunx.MalformedTokenizer, :offsets})
   end
 
   test "coalesces repeated and overlapping offsets into byte-safe units" do
     assert TokenizerBoundary.units([{0, 3}, {0, 3}, {1, 4}, {4, 5}]) ==
              [{0, 4, 3}, {4, 5, 1}]
+  end
+
+  test "packs an empty unit list as no chunks" do
+    assert TokenizerBoundary.pack([], 10, 0) == []
+    assert TokenizerBoundary.pack([], 10, 5) == []
+  end
+
+  test "token chunking propagates a failure while recounting a completed chunk" do
+    tokenizer =
+      function_tokenizer(fn
+        "alpha beta" -> {:ok, [{0, 5}, {6, 10}]}
+        "alpha" -> {:error, :chunk_recount_failed}
+      end)
+
+    assert {:error, :chunk_recount_failed} =
+             Token.chunk("alpha beta", tokenizer, chunk_size: 1, chunk_overlap: 0)
+  end
+
+  test "word chunking propagates a failure while finalizing a chunk" do
+    tokenizer =
+      sequenced_tokenizer(fn
+        "one", 1 -> {:ok, [{0, 3}]}
+        "one", 2 -> {:error, :chunk_recount_failed}
+        " two", 1 -> {:ok, [{0, 4}]}
+      end)
+
+    assert {:error, :chunk_recount_failed} =
+             Word.chunk("one two", tokenizer, chunk_size: 1, chunk_overlap: 0)
+  end
+
+  test "recursive chunking propagates a failure while merging structural splits" do
+    tokenizer =
+      function_tokenizer(fn
+        "a b" -> {:ok, [{0, 1}, {2, 3}]}
+        "a " -> {:error, :merge_count_failed}
+      end)
+
+    assert {:error, :merge_count_failed} =
+             Recursive.chunk("a b", tokenizer,
+               chunk_size: 1,
+               levels: [:whitespace]
+             )
+  end
+
+  test "recursive chunking propagates a failure while counting a structural split" do
+    tokenizer =
+      function_tokenizer(fn
+        "a b" -> {:ok, [{0, 1}, {2, 3}]}
+        "a " -> {:ok, [{0, 1}]}
+        "b" -> {:error, :split_count_failed}
+      end)
+
+    assert {:error, :split_count_failed} =
+             Recursive.chunk("a b", tokenizer,
+               chunk_size: 1,
+               levels: [:whitespace]
+             )
+  end
+
+  test "recursive chunking propagates a failure from a nested token fallback" do
+    tokenizer =
+      sequenced_tokenizer(fn
+        "aa bb", _call -> {:ok, [{0, 1}, {1, 2}, {3, 4}, {4, 5}]}
+        "aa ", call when call <= 2 -> {:ok, [{0, 1}, {1, 2}]}
+        "aa ", 3 -> {:error, :nested_tokenization_failed}
+      end)
+
+    assert {:error, :nested_tokenization_failed} =
+             Recursive.chunk("aa bb", tokenizer,
+               chunk_size: 1,
+               levels: [:whitespace, :tokens]
+             )
   end
 
   property "packs ordinary token units like the sliding-window reference model" do
@@ -197,5 +280,21 @@ defmodule Chunx.TokenizerContractTest do
   defp content_token_count(text, tokenizer) do
     {:ok, count} = TokenizerBoundary.count(tokenizer, text)
     count
+  end
+
+  defp function_tokenizer(function), do: {Chunx.FunctionTokenizer, function}
+
+  defp sequenced_tokenizer(responder) do
+    counter = start_supervised!({Agent, fn -> %{} end})
+
+    function_tokenizer(fn text ->
+      call =
+        Agent.get_and_update(counter, fn calls ->
+          call = Map.get(calls, text, 0) + 1
+          {call, Map.put(calls, text, call)}
+        end)
+
+      responder.(text, call)
+    end)
   end
 end
